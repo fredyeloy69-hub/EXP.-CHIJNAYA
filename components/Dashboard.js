@@ -83,6 +83,17 @@ export default function Dashboard() {
     new Set(carpetas.map((c) => c.area || "Sin área"))
   ).sort();
 
+  // Estadisticas por area: total, completas, incompletas, vacias — para el circulo de progreso
+  const areaStats = {};
+  for (const c of carpetas) {
+    const a = c.area || "Sin área";
+    if (!areaStats[a]) areaStats[a] = { total: 0, completas: 0, incompletas: 0, vacias: 0 };
+    areaStats[a].total++;
+    if (c.estado === "completa") areaStats[a].completas++;
+    if (c.estado === "incompleta") areaStats[a].incompletas++;
+    if (c.estado === "vacia") areaStats[a].vacias++;
+  }
+
   let pendientes = carpetas
     .filter((c) => c.estado !== "completa")
     .sort((a, b) => (a.ruta || "").localeCompare(b.ruta || ""));
@@ -134,18 +145,38 @@ export default function Dashboard() {
             <h2 style={{ fontSize: 16, color: "#c7cede", margin: 0 }}>Carpetas que faltan completar</h2>
           </div>
 
-          {/* Filtros */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-            <select
-              value={filtroArea}
-              onChange={(e) => setFiltroArea(e.target.value)}
-              style={selectStyle}
+          {/* Chips de área — click directo para filtrar por especialidad */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={() => setFiltroArea("Todas")}
+              style={chipStyle(filtroArea === "Todas", "#3d7dff")}
             >
-              <option value="Todas">Todas las áreas</option>
-              {areas.map((a) => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
+              Todas ({carpetas.filter((c) => c.estado !== "completa").length})
+            </button>
+            {areas.map((a) => {
+              const count = carpetas.filter(
+                (c) => c.estado !== "completa" && (c.area || "Sin área") === a
+              ).length;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={a}
+                  onClick={() => setFiltroArea(a)}
+                  style={chipStyle(filtroArea === a, colorForArea(a))}
+                >
+                  {a} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Panel de progreso circular — aparece al elegir una especialidad especifica */}
+          {filtroArea !== "Todas" && areaStats[filtroArea] && (
+            <AreaProgressPanel area={filtroArea} stats={areaStats[filtroArea]} color={colorForArea(filtroArea)} />
+          )}
+
+          {/* Filtro por estado */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             <select
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
@@ -168,16 +199,29 @@ export default function Dashboard() {
             {pendientes.map((c) => {
               const area = c.area || "Sin área";
               const detalle = c.detalle || c.estado;
+              const driveUrl = `https://drive.google.com/drive/folders/${c.id}`;
               return (
-                <div
+                
                   key={c.id}
+                  href={driveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
+                    display: "block",
                     padding: "10px 16px",
                     borderBottom: "1px solid #1f2740",
+                    textDecoration: "none",
+                    color: "inherit",
+                    cursor: "pointer",
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#1b2338")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  title="Abrir esta carpeta en Google Drive"
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <span style={{ fontSize: 13 }}>{c.ruta || c.nombre}</span>
+                    <span style={{ fontSize: 13 }}>
+                      {c.ruta || c.nombre} <span style={{ color: "#4a5164" }}>↗</span>
+                    </span>
                     <span
                       style={{
                         fontSize: 10,
@@ -208,7 +252,7 @@ export default function Dashboard() {
                     </span>
                     <span style={{ fontSize: 11, color: "#8a93a6" }}>{detalle}</span>
                   </div>
-                </div>
+                </a>
               );
             })}
           </div>
@@ -238,6 +282,93 @@ export default function Dashboard() {
       </div>
     </div>
   );
+}
+
+function AreaProgressPanel({ area, stats, color }) {
+  const pct = stats.total > 0 ? Math.round((stats.completas / stats.total) * 100) : 0;
+  const size = 96;
+  const stroke = 9;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 20,
+        background: "#151b2b",
+        border: `1px solid ${color}44`,
+        borderRadius: 10,
+        padding: "16px 20px",
+        marginBottom: 12,
+      }}
+    >
+      <svg width={size} height={size} style={{ flexShrink: 0 }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#1f2740"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dashoffset .5s ease" }}
+        />
+        <text
+          x="50%"
+          y="50%"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="20"
+          fontWeight="700"
+          fill="#e8ecf1"
+        >
+          {pct}%
+        </text>
+      </svg>
+
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 700, color, marginBottom: 6 }}>{area}</div>
+        <div style={{ fontSize: 12, color: "#c7cede", lineHeight: 1.7 }}>
+          <div>
+            <span style={{ color: "#2ecc71", fontWeight: 700 }}>{stats.completas}</span> completas de{" "}
+            <strong>{stats.total}</strong> carpetas
+          </div>
+          <div>
+            <span style={{ color: "#f39c12", fontWeight: 700 }}>{stats.incompletas}</span> incompletas
+            {"  ·  "}
+            <span style={{ color: "#e74c3c", fontWeight: 700 }}>{stats.vacias}</span> vacías
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function chipStyle(active, color) {
+  return {
+    fontSize: 11,
+    padding: "5px 10px",
+    borderRadius: 20,
+    border: `1px solid ${active ? color : "#2a3350"}`,
+    background: active ? color + "33" : "#151b2b",
+    color: active ? color : "#8a93a6",
+    fontWeight: 600,
+    cursor: "pointer",
+  };
 }
 
 const selectStyle = {
