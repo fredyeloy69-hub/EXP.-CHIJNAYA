@@ -17,6 +17,23 @@ const ESTADO_COLOR = {
   vacia: "#e74c3c",
 };
 
+const AREA_COLORS = [
+  "#3d7dff",
+  "#a35bff",
+  "#ff5ea3",
+  "#ff8a3d",
+  "#2ecc71",
+  "#17b8a6",
+  "#e0b800",
+  "#6b7280",
+];
+
+function colorForArea(area) {
+  let hash = 0;
+  for (let i = 0; i < area.length; i++) hash = area.charCodeAt(i) + ((hash << 5) - hash);
+  return AREA_COLORS[Math.abs(hash) % AREA_COLORS.length];
+}
+
 const EVENTO_LABEL = {
   archivo_subido: "subió",
   archivo_reemplazado: "reemplazó",
@@ -30,6 +47,8 @@ export default function Dashboard() {
   const [resumen, setResumen] = useState(null);
   const [carpetas, setCarpetas] = useState([]);
   const [eventos, setEventos] = useState([]);
+  const [filtroArea, setFiltroArea] = useState("Todas");
+  const [filtroEstado, setFiltroEstado] = useState("Todas");
 
   useEffect(() => {
     const unsubResumen = onSnapshot(doc(db, "_meta", "resumen"), (snap) => {
@@ -60,9 +79,20 @@ export default function Dashboard() {
     ? Math.round((resumen.completas / resumen.totalFinales) * 100)
     : 0;
 
-  const pendientes = carpetas
+  const areas = Array.from(
+    new Set(carpetas.map((c) => c.area || "Sin área"))
+  ).sort();
+
+  let pendientes = carpetas
     .filter((c) => c.estado !== "completa")
     .sort((a, b) => (a.ruta || "").localeCompare(b.ruta || ""));
+
+  if (filtroArea !== "Todas") {
+    pendientes = pendientes.filter((c) => (c.area || "Sin área") === filtroArea);
+  }
+  if (filtroEstado !== "Todas") {
+    pendientes = pendientes.filter((c) => c.estado === filtroEstado);
+  }
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", color: "#e8ecf1" }}>
@@ -100,38 +130,87 @@ export default function Dashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 24 }}>
         {/* Carpetas pendientes */}
         <div>
-          <h2 style={{ fontSize: 16, color: "#c7cede" }}>Carpetas que faltan completar</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <h2 style={{ fontSize: 16, color: "#c7cede", margin: 0 }}>Carpetas que faltan completar</h2>
+          </div>
+
+          {/* Filtros */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+            <select
+              value={filtroArea}
+              onChange={(e) => setFiltroArea(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="Todas">Todas las áreas</option>
+              {areas.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+            <select
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+              style={selectStyle}
+            >
+              <option value="Todas">Todos los estados</option>
+              <option value="incompleta">Incompletas</option>
+              <option value="vacia">Vacías</option>
+            </select>
+          </div>
+
           <div style={{ background: "#151b2b", borderRadius: 10, overflow: "hidden" }}>
             {pendientes.length === 0 && (
-              <p style={{ padding: 16, color: "#8a93a6" }}>Sin datos todavía — esperando primera sincronización.</p>
+              <p style={{ padding: 16, color: "#8a93a6" }}>
+                {carpetas.length === 0
+                  ? "Sin datos todavía — esperando primera sincronización."
+                  : "No hay carpetas que coincidan con el filtro."}
+              </p>
             )}
-            {pendientes.map((c) => (
-              <div
-                key={c.id}
-                style={{
-                  padding: "10px 16px",
-                  borderBottom: "1px solid #1f2740",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span style={{ fontSize: 13 }}>{c.ruta || c.nombre}</span>
-                <span
+            {pendientes.map((c) => {
+              const area = c.area || "Sin área";
+              const detalle = c.detalle || c.estado;
+              return (
+                <div
+                  key={c.id}
                   style={{
-                    fontSize: 11,
-                    padding: "2px 8px",
-                    borderRadius: 20,
-                    background: ESTADO_COLOR[c.estado] + "22",
-                    color: ESTADO_COLOR[c.estado],
-                    textTransform: "uppercase",
-                    fontWeight: 600,
+                    padding: "10px 16px",
+                    borderBottom: "1px solid #1f2740",
                   }}
                 >
-                  {c.estado}
-                </span>
-              </div>
-            ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    <span style={{ fontSize: 13 }}>{c.ruta || c.nombre}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "2px 8px",
+                        borderRadius: 20,
+                        background: ESTADO_COLOR[c.estado] + "22",
+                        color: ESTADO_COLOR[c.estado],
+                        textTransform: "uppercase",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {c.estado}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: "2px 8px",
+                        borderRadius: 6,
+                        background: colorForArea(area) + "22",
+                        color: colorForArea(area),
+                        fontWeight: 600,
+                      }}
+                    >
+                      {area}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#8a93a6" }}>{detalle}</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -160,6 +239,15 @@ export default function Dashboard() {
     </div>
   );
 }
+
+const selectStyle = {
+  background: "#151b2b",
+  color: "#e8ecf1",
+  border: "1px solid #2a3350",
+  borderRadius: 6,
+  padding: "6px 10px",
+  fontSize: 12,
+};
 
 function Card({ label, value, color }) {
   return (
