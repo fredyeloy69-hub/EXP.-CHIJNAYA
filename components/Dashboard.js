@@ -201,17 +201,12 @@ export default function Dashboard() {
               const detalle = c.detalle || c.estado;
               const driveUrl = `https://drive.google.com/drive/folders/${c.id}`;
               return (
-                
+                <div
                   key={c.id}
-                  href={driveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  onClick={() => window.open(driveUrl, "_blank", "noopener,noreferrer")}
                   style={{
-                    display: "block",
                     padding: "10px 16px",
                     borderBottom: "1px solid #1f2740",
-                    textDecoration: "none",
-                    color: "inherit",
                     cursor: "pointer",
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "#1b2338")}
@@ -252,7 +247,7 @@ export default function Dashboard() {
                     </span>
                     <span style={{ fontSize: 11, color: "#8a93a6" }}>{detalle}</span>
                   </div>
-                </a>
+                </div>
               );
             })}
           </div>
