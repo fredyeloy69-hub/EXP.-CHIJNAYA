@@ -34,6 +34,14 @@ function colorForArea(area) {
   return AREA_COLORS[Math.abs(hash) % AREA_COLORS.length];
 }
 
+const ESTADO_OPTIONS = [
+  { value: "pendientes", label: "Pendientes", color: "#3d7dff" },
+  { value: "incompleta", label: "Incompletas", color: "#f39c12" },
+  { value: "vacia", label: "Vacías", color: "#e74c3c" },
+  { value: "completa", label: "Completas", color: "#2ecc71" },
+  { value: "todas", label: "Todas", color: "#8a93a6" },
+];
+
 const EVENTO_LABEL = {
   archivo_subido: "subió",
   archivo_reemplazado: "reemplazó",
@@ -114,6 +122,7 @@ export default function Dashboard() {
     completa: "Solo completas",
     todas: "Todas las carpetas",
   };
+  const areaLabel = filtroArea !== "Todas" ? ` · ${filtroArea}` : "";
 
   return (
     <div style={{ maxWidth: 1500, margin: "0 auto", padding: "32px 28px", color: "#e8ecf1" }}>
@@ -153,51 +162,61 @@ export default function Dashboard() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <h2 style={{ fontSize: 16, color: "#c7cede", margin: 0 }}>
-              Carpetas — {ESTADO_FILTRO_LABEL[filtroEstado]}
+              Carpetas — {ESTADO_FILTRO_LABEL[filtroEstado]}{areaLabel}
             </h2>
           </div>
 
-          {/* Chips de área — click directo para filtrar por especialidad */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-            <button
+          {/* Grilla de áreas — mini círculos de progreso, un click para filtrar */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))",
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <AreaMiniCard
+              area="Todas"
+              pct={pct}
+              total={resumen?.totalFinales ?? 0}
+              color="#3d7dff"
+              active={filtroArea === "Todas"}
               onClick={() => setFiltroArea("Todas")}
-              style={chipStyle(filtroArea === "Todas", "#3d7dff")}
-            >
-              Todas ({listaBase.length})
-            </button>
+            />
             {areas.map((a) => {
-              const count = listaBase.filter((c) => (c.area || "Sin área") === a).length;
-              if (count === 0) return null;
+              const s = areaStats[a];
+              if (!s) return null;
+              const areaPct = s.total > 0 ? Math.round((s.completas / s.total) * 100) : 0;
               return (
-                <button
+                <AreaMiniCard
                   key={a}
-                  onClick={() => setFiltroArea(a)}
-                  style={chipStyle(filtroArea === a, colorForArea(a))}
-                >
-                  {a} ({count})
-                </button>
+                  area={a}
+                  pct={areaPct}
+                  total={s.total}
+                  color={colorForArea(a)}
+                  active={filtroArea === a}
+                  onClick={() => setFiltroArea(filtroArea === a ? "Todas" : a)}
+                />
               );
             })}
           </div>
 
-          {/* Panel de progreso circular — aparece al elegir una especialidad especifica */}
+          {/* Panel de progreso circular — detalle ampliado de la especialidad elegida */}
           {filtroArea !== "Todas" && areaStats[filtroArea] && (
             <AreaProgressPanel area={filtroArea} stats={areaStats[filtroArea]} color={colorForArea(filtroArea)} />
           )}
 
-          {/* Filtro por estado */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <select
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              style={selectStyle}
-            >
-              <option value="pendientes">Pendientes (incompletas + vacías)</option>
-              <option value="incompleta">Solo incompletas</option>
-              <option value="vacia">Solo vacías</option>
-              <option value="completa">Solo completas</option>
-              <option value="todas">Todas las carpetas</option>
-            </select>
+          {/* Filtro por estado — botones de un click, sin desplegable */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+            {ESTADO_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setFiltroEstado(opt.value)}
+                style={chipStyle(filtroEstado === opt.value, opt.color)}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
 
           <div style={{ background: "#151b2b", borderRadius: 10, overflow: "hidden" }}>
@@ -321,6 +340,66 @@ function RutaJerarquica({ ruta, nombre }) {
         );
       })}
     </div>
+  );
+}
+
+function AreaMiniCard({ area, pct, total, color, active, onClick }) {
+  const size = 56;
+  const stroke = 6;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 5,
+        padding: "10px 6px",
+        borderRadius: 10,
+        border: `1.5px solid ${active ? color : "#1f2740"}`,
+        background: active ? color + "18" : "#151b2b",
+        cursor: "pointer",
+        transition: "all .15s ease",
+      }}
+      title={`${area} — ${pct}% completo (${total} carpetas)`}
+    >
+      <svg width={size} height={size}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#1f2740" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dashoffset .5s ease" }}
+        />
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="700" fill="#e8ecf1">
+          {pct}%
+        </text>
+      </svg>
+      <div
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          color: active ? color : "#c7cede",
+          textAlign: "center",
+          lineHeight: 1.2,
+          maxWidth: 84,
+        }}
+      >
+        {area}
+      </div>
+      <div style={{ fontSize: 8, color: "#6b7280" }}>{total} carpetas</div>
+    </button>
   );
 }
 
