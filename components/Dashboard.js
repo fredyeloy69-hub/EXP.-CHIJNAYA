@@ -506,3 +506,4 @@ function Card({ label, value, color }) {
       <div style={{ fontSize: 12, color: "#8a93a6" }}>{label}</div>
     </div>
   );
+}
