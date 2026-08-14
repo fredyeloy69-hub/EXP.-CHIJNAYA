@@ -369,7 +369,8 @@ export default function Dashboard() {
 
               return ordenGrupos.map((key) => {
                 const g = grupos[key];
-                const color = colorForArea(g.area);
+                const HEADER_COLOR = "#22e5a6";
+                const color = HEADER_COLOR;
                 return (
                   <div key={key}>
                     <div
