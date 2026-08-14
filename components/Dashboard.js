@@ -170,7 +170,7 @@ export default function Dashboard() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
               gap: 8,
               marginBottom: 14,
             }}
@@ -344,8 +344,8 @@ function RutaJerarquica({ ruta, nombre }) {
 }
 
 function AreaMiniCard({ area, pct, total, color, active, onClick }) {
-  const size = 56;
-  const stroke = 6;
+  const size = 84;
+  const stroke = 8;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
@@ -357,10 +357,10 @@ function AreaMiniCard({ area, pct, total, color, active, onClick }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 5,
-        padding: "10px 6px",
-        borderRadius: 10,
-        border: `1.5px solid ${active ? color : "#1f2740"}`,
+        gap: 8,
+        padding: "14px 8px",
+        borderRadius: 12,
+        border: `2px solid ${active ? color : "#1f2740"}`,
         background: active ? color + "18" : "#151b2b",
         cursor: "pointer",
         transition: "all .15s ease",
@@ -382,23 +382,23 @@ function AreaMiniCard({ area, pct, total, color, active, onClick }) {
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: "stroke-dashoffset .5s ease" }}
         />
-        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="13" fontWeight="700" fill="#e8ecf1">
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="19" fontWeight="700" fill="#e8ecf1">
           {pct}%
         </text>
       </svg>
       <div
         style={{
-          fontSize: 9,
+          fontSize: 11,
           fontWeight: 700,
           color: active ? color : "#c7cede",
           textAlign: "center",
-          lineHeight: 1.2,
-          maxWidth: 84,
+          lineHeight: 1.25,
+          maxWidth: 110,
         }}
       >
         {area}
       </div>
-      <div style={{ fontSize: 8, color: "#6b7280" }}>{total} carpetas</div>
+      <div style={{ fontSize: 10, color: "#6b7280" }}>{total} carpetas</div>
     </button>
   );
 }
@@ -506,4 +506,3 @@ function Card({ label, value, color }) {
       <div style={{ fontSize: 12, color: "#8a93a6" }}>{label}</div>
     </div>
   );
-}
