@@ -125,34 +125,46 @@ export default function Dashboard() {
   const areaLabel = filtroArea !== "Todas" ? ` · ${filtroArea}` : "";
 
   return (
-    <div style={{ maxWidth: 1500, margin: "0 auto", padding: "32px 28px", color: "#e8ecf1" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        background:
+          "radial-gradient(circle at 20% 0%, #1a2244 0%, #0a0e1a 45%, #060810 100%)",
+      }}
+    >
+      <div style={{ maxWidth: 1500, margin: "0 auto", padding: "32px 28px", color: "#e8ecf1" }}>
       <h1 style={{ fontSize: 24, marginBottom: 4 }}>Expediente Técnico — C.S. Chijnaya</h1>
       <p style={{ color: "#8a93a6", marginTop: 0, marginBottom: 28 }}>
         Estado en tiempo real de la carga de documentación
       </p>
 
-      {/* Barra de progreso — la barra principal, debe resaltar sobre el resto */}
+      {/* Barra de progreso — estilo "barra de energía", debe resaltar sobre el resto */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: "#c7cede" }}>Avance general</span>
-          <strong style={{ fontSize: 28 }}>{pct}%</strong>
+          <span style={{ fontSize: 16, fontWeight: 700, color: "#c7cede", letterSpacing: 0.5 }}>
+            <span style={{ color: "#ff8a3d" }}>»» </span>AVANCE GENERAL
+          </span>
+          <strong style={{ fontSize: 30, textShadow: "0 0 18px rgba(255,138,61,.6)" }}>{pct}%</strong>
         </div>
         <div
           style={{
-            height: 32,
-            background: "#1c2333",
-            borderRadius: 16,
+            height: 34,
+            background: "#11162a",
+            borderRadius: 17,
             overflow: "hidden",
-            boxShadow: "inset 0 2px 4px rgba(0,0,0,.3)",
+            boxShadow: "inset 0 2px 6px rgba(0,0,0,.5), 0 0 0 1px #1f2740",
           }}
         >
           <div
             style={{
               width: `${pct}%`,
               height: "100%",
-              background: "linear-gradient(90deg,#ff8a3d,#ff5e3a)",
+              backgroundImage:
+                "repeating-linear-gradient(45deg, rgba(255,255,255,.16) 0px, rgba(255,255,255,.16) 9px, transparent 9px, transparent 18px), linear-gradient(90deg,#ff8a3d,#ff5e3a)",
               transition: "width .4s ease",
-              boxShadow: "0 0 16px rgba(255,110,58,.55)",
+              boxShadow: "0 0 22px rgba(255,110,58,.65)",
+              borderRadius: 17,
             }}
           />
         </div>
@@ -228,7 +240,15 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div style={{ background: "#151b2b", borderRadius: 10, overflow: "hidden" }}>
+          <div
+            style={{
+              background: "rgba(21,27,43,.5)",
+              backdropFilter: "blur(6px)",
+              borderRadius: 12,
+              overflow: "hidden",
+              border: "1px solid #1f2740",
+            }}
+          >
             {visibles.length === 0 && (
               <p style={{ padding: 16, color: "#8a93a6" }}>
                 {carpetas.length === 0
@@ -295,7 +315,16 @@ export default function Dashboard() {
         {/* Log de actividad */}
         <div>
           <h2 style={{ fontSize: 16, color: "#c7cede" }}>Actividad reciente</h2>
-          <div style={{ background: "#151b2b", borderRadius: 10, maxHeight: 480, overflowY: "auto" }}>
+          <div
+            style={{
+              background: "rgba(21,27,43,.5)",
+              backdropFilter: "blur(6px)",
+              borderRadius: 12,
+              maxHeight: 480,
+              overflowY: "auto",
+              border: "1px solid #1f2740",
+            }}
+          >
             {eventos.length === 0 && (
               <p style={{ padding: 16, color: "#8a93a6" }}>Sin eventos todavía.</p>
             )}
@@ -313,6 +342,7 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -510,9 +540,19 @@ const selectStyle = {
 
 function Card({ label, value, color }) {
   return (
-    <div style={{ background: "#151b2b", borderRadius: 10, padding: "16px", borderTop: `3px solid ${color}` }}>
-      <div style={{ fontSize: 26, fontWeight: 700 }}>{value}</div>
-      <div style={{ fontSize: 12, color: "#8a93a6" }}>{label}</div>
+    <div
+      style={{
+        background: "rgba(21,27,43,.65)",
+        backdropFilter: "blur(6px)",
+        borderRadius: 12,
+        padding: "18px",
+        border: `1px solid ${color}33`,
+        borderTop: `3px solid ${color}`,
+        boxShadow: `0 0 20px ${color}22`,
+      }}
+    >
+      <div style={{ fontSize: 28, fontWeight: 700, textShadow: `0 0 14px ${color}55` }}>{value}</div>
+      <div style={{ fontSize: 12, color: "#8a93a6", letterSpacing: 0.3 }}>{label}</div>
     </div>
   );
 }
