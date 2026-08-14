@@ -48,7 +48,7 @@ export default function Dashboard() {
   const [carpetas, setCarpetas] = useState([]);
   const [eventos, setEventos] = useState([]);
   const [filtroArea, setFiltroArea] = useState("Todas");
-  const [filtroEstado, setFiltroEstado] = useState("Todas");
+  const [filtroEstado, setFiltroEstado] = useState("pendientes"); // pendientes | incompleta | vacia | completa | todas
 
   useEffect(() => {
     const unsubResumen = onSnapshot(doc(db, "_meta", "resumen"), (snap) => {
@@ -94,19 +94,29 @@ export default function Dashboard() {
     if (c.estado === "vacia") areaStats[a].vacias++;
   }
 
-  let pendientes = carpetas
-    .filter((c) => c.estado !== "completa")
-    .sort((a, b) => (a.ruta || "").localeCompare(b.ruta || ""));
+  let listaBase = carpetas;
+  if (filtroEstado === "pendientes") {
+    listaBase = carpetas.filter((c) => c.estado !== "completa");
+  } else if (filtroEstado !== "todas") {
+    listaBase = carpetas.filter((c) => c.estado === filtroEstado);
+  }
+
+  let visibles = listaBase.sort((a, b) => (a.ruta || "").localeCompare(b.ruta || ""));
 
   if (filtroArea !== "Todas") {
-    pendientes = pendientes.filter((c) => (c.area || "Sin área") === filtroArea);
-  }
-  if (filtroEstado !== "Todas") {
-    pendientes = pendientes.filter((c) => c.estado === filtroEstado);
+    visibles = visibles.filter((c) => (c.area || "Sin área") === filtroArea);
   }
 
+  const ESTADO_FILTRO_LABEL = {
+    pendientes: "Pendientes (incompletas + vacías)",
+    incompleta: "Solo incompletas",
+    vacia: "Solo vacías",
+    completa: "Solo completas",
+    todas: "Todas las carpetas",
+  };
+
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px", color: "#e8ecf1" }}>
+    <div style={{ maxWidth: 1500, margin: "0 auto", padding: "32px 28px", color: "#e8ecf1" }}>
       <h1 style={{ fontSize: 24, marginBottom: 4 }}>Expediente Técnico — C.S. Chijnaya</h1>
       <p style={{ color: "#8a93a6", marginTop: 0, marginBottom: 28 }}>
         Estado en tiempo real de la carga de documentación
@@ -142,7 +152,9 @@ export default function Dashboard() {
         {/* Carpetas pendientes */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <h2 style={{ fontSize: 16, color: "#c7cede", margin: 0 }}>Carpetas que faltan completar</h2>
+            <h2 style={{ fontSize: 16, color: "#c7cede", margin: 0 }}>
+              Carpetas — {ESTADO_FILTRO_LABEL[filtroEstado]}
+            </h2>
           </div>
 
           {/* Chips de área — click directo para filtrar por especialidad */}
@@ -151,12 +163,10 @@ export default function Dashboard() {
               onClick={() => setFiltroArea("Todas")}
               style={chipStyle(filtroArea === "Todas", "#3d7dff")}
             >
-              Todas ({carpetas.filter((c) => c.estado !== "completa").length})
+              Todas ({listaBase.length})
             </button>
             {areas.map((a) => {
-              const count = carpetas.filter(
-                (c) => c.estado !== "completa" && (c.area || "Sin área") === a
-              ).length;
+              const count = listaBase.filter((c) => (c.area || "Sin área") === a).length;
               if (count === 0) return null;
               return (
                 <button
@@ -182,21 +192,23 @@ export default function Dashboard() {
               onChange={(e) => setFiltroEstado(e.target.value)}
               style={selectStyle}
             >
-              <option value="Todas">Todos los estados</option>
-              <option value="incompleta">Incompletas</option>
-              <option value="vacia">Vacías</option>
+              <option value="pendientes">Pendientes (incompletas + vacías)</option>
+              <option value="incompleta">Solo incompletas</option>
+              <option value="vacia">Solo vacías</option>
+              <option value="completa">Solo completas</option>
+              <option value="todas">Todas las carpetas</option>
             </select>
           </div>
 
           <div style={{ background: "#151b2b", borderRadius: 10, overflow: "hidden" }}>
-            {pendientes.length === 0 && (
+            {visibles.length === 0 && (
               <p style={{ padding: 16, color: "#8a93a6" }}>
                 {carpetas.length === 0
                   ? "Sin datos todavía — esperando primera sincronización."
                   : "No hay carpetas que coincidan con el filtro."}
               </p>
             )}
-            {pendientes.map((c) => {
+            {visibles.map((c) => {
               const area = c.area || "Sin área";
               const detalle = c.detalle || c.estado;
               const driveUrl = `https://drive.google.com/drive/folders/${c.id}`;
@@ -205,7 +217,7 @@ export default function Dashboard() {
                   key={c.id}
                   onClick={() => window.open(driveUrl, "_blank", "noopener,noreferrer")}
                   style={{
-                    padding: "10px 16px",
+                    padding: "12px 16px",
                     borderBottom: "1px solid #1f2740",
                     cursor: "pointer",
                   }}
@@ -214,9 +226,7 @@ export default function Dashboard() {
                   title="Abrir esta carpeta en Google Drive"
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <span style={{ fontSize: 13 }}>
-                      {c.ruta || c.nombre} <span style={{ color: "#4a5164" }}>↗</span>
-                    </span>
+                    <RutaJerarquica ruta={c.ruta} nombre={c.nombre} />
                     <span
                       style={{
                         fontSize: 10,
@@ -227,12 +237,13 @@ export default function Dashboard() {
                         textTransform: "uppercase",
                         fontWeight: 600,
                         whiteSpace: "nowrap",
+                        flexShrink: 0,
                       }}
                     >
                       {c.estado}
                     </span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                     <span
                       style={{
                         fontSize: 10,
@@ -275,6 +286,40 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Muestra la ruta como breadcrumb jerarquico: niveles padre chicos/grises,
+// nombre final de la carpeta grande y resaltado. Si hay mas de 4 niveles,
+// colapsa los del medio con "…" para que siga siendo legible.
+function RutaJerarquica({ ruta, nombre }) {
+  const partes = (ruta || nombre || "").split(" / ").filter(Boolean);
+  let mostrar = partes;
+  if (partes.length > 4) {
+    mostrar = [partes[0], "…", partes[partes.length - 2], partes[partes.length - 1]];
+  }
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 4, flex: 1, minWidth: 0 }}>
+      {mostrar.map((p, i) => {
+        const esUltimo = i === mostrar.length - 1;
+        return (
+          <span key={i} style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}>
+            {i > 0 && <span style={{ color: "#3d4560", fontSize: 11 }}>›</span>}
+            <span
+              style={{
+                fontSize: esUltimo ? 14 : 11,
+                fontWeight: esUltimo ? 700 : 500,
+                color: esUltimo ? "#e8ecf1" : "#7a8299",
+              }}
+            >
+              {p}
+              {esUltimo && <span style={{ color: "#4a5164", marginLeft: 4 }}>↗</span>}
+            </span>
+          </span>
+        );
+      })}
     </div>
   );
 }
