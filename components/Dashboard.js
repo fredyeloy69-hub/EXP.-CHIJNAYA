@@ -131,19 +131,28 @@ export default function Dashboard() {
         Estado en tiempo real de la carga de documentación
       </p>
 
-      {/* Barra de progreso */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <span>Avance general</span>
-          <strong>{pct}%</strong>
+      {/* Barra de progreso — la barra principal, debe resaltar sobre el resto */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: "#c7cede" }}>Avance general</span>
+          <strong style={{ fontSize: 28 }}>{pct}%</strong>
         </div>
-        <div style={{ height: 14, background: "#1c2333", borderRadius: 8, overflow: "hidden" }}>
+        <div
+          style={{
+            height: 32,
+            background: "#1c2333",
+            borderRadius: 16,
+            overflow: "hidden",
+            boxShadow: "inset 0 2px 4px rgba(0,0,0,.3)",
+          }}
+        >
           <div
             style={{
               width: `${pct}%`,
               height: "100%",
               background: "linear-gradient(90deg,#ff8a3d,#ff5e3a)",
               transition: "width .4s ease",
+              boxShadow: "0 0 16px rgba(255,110,58,.55)",
             }}
           />
         </div>
@@ -170,7 +179,7 @@ export default function Dashboard() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
               gap: 8,
               marginBottom: 14,
             }}
@@ -344,8 +353,8 @@ function RutaJerarquica({ ruta, nombre }) {
 }
 
 function AreaMiniCard({ area, pct, total, color, active, onClick }) {
-  const size = 84;
-  const stroke = 8;
+  const size = 112;
+  const stroke = 10;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
@@ -357,9 +366,9 @@ function AreaMiniCard({ area, pct, total, color, active, onClick }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 8,
-        padding: "14px 8px",
-        borderRadius: 12,
+        gap: 10,
+        padding: "18px 10px",
+        borderRadius: 14,
         border: `2px solid ${active ? color : "#1f2740"}`,
         background: active ? color + "18" : "#151b2b",
         cursor: "pointer",
@@ -382,23 +391,23 @@ function AreaMiniCard({ area, pct, total, color, active, onClick }) {
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: "stroke-dashoffset .5s ease" }}
         />
-        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="19" fontWeight="700" fill="#e8ecf1">
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="25" fontWeight="700" fill="#e8ecf1">
           {pct}%
         </text>
       </svg>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 700,
           color: active ? color : "#c7cede",
           textAlign: "center",
           lineHeight: 1.25,
-          maxWidth: 110,
+          maxWidth: 140,
         }}
       >
         {area}
       </div>
-      <div style={{ fontSize: 10, color: "#6b7280" }}>{total} carpetas</div>
+      <div style={{ fontSize: 11, color: "#6b7280" }}>{total} carpetas</div>
     </button>
   );
 }
