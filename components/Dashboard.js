@@ -160,7 +160,9 @@ export default function Dashboard() {
     listaBase = carpetas.filter((c) => c.estado === filtroEstado);
   }
 
-  let visibles = listaBase.sort((a, b) => (a.ruta || "").localeCompare(b.ruta || ""));
+  let visibles = listaBase.sort((a, b) =>
+    (a.ruta || "").localeCompare(b.ruta || "", undefined, { numeric: true, sensitivity: "base" })
+  );
 
   if (filtroArea !== "Todas") {
     visibles = visibles.filter((c) => (c.area || "Sin área") === filtroArea);
@@ -202,15 +204,16 @@ export default function Dashboard() {
             onClick={handleSync}
             disabled={sincronizando}
             style={{
-              fontSize: 13,
-              fontWeight: 700,
-              padding: "10px 18px",
-              borderRadius: 10,
-              border: "1px solid #ff8a3d55",
-              background: sincronizando ? "#1c2333" : "linear-gradient(90deg,#ff8a3d22,#ff5e3a22)",
-              color: sincronizando ? "#6b7280" : "#ff9d5c",
+              fontSize: 20,
+              fontWeight: 800,
+              padding: "22px 42px",
+              borderRadius: 16,
+              border: "2px solid #ff8a3d88",
+              background: sincronizando ? "#1c2333" : "linear-gradient(90deg,#ff8a3d33,#ff5e3a33)",
+              color: sincronizando ? "#6b7280" : "#ffb27a",
               cursor: sincronizando ? "not-allowed" : "pointer",
-              boxShadow: sincronizando ? "none" : "0 0 14px rgba(255,138,61,.25)",
+              boxShadow: sincronizando ? "none" : "0 0 28px rgba(255,138,61,.4)",
+              letterSpacing: 0.3,
             }}
           >
             {sincronizando ? "⟳ Sincronizando..." : "⟳ Sincronizar ahora"}
@@ -281,7 +284,7 @@ export default function Dashboard() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
               gap: 8,
               marginBottom: 14,
             }}
@@ -362,7 +365,7 @@ export default function Dashboard() {
                 }
                 grupos[key].items.push(c);
               }
-              ordenGrupos.sort((a, b) => a.localeCompare(b));
+              ordenGrupos.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
 
               return ordenGrupos.map((key) => {
                 const g = grupos[key];
@@ -371,21 +374,22 @@ export default function Dashboard() {
                   <div key={key}>
                     <div
                       style={{
-                        padding: "9px 16px",
-                        background: color + "14",
-                        borderTop: `1px solid ${color}33`,
-                        borderBottom: `1px solid ${color}33`,
+                        padding: "10px 16px 10px 14px",
+                        background: "#0a0e1c",
+                        borderLeft: `4px solid ${color}`,
+                        borderTop: "1px solid #1f2740",
+                        borderBottom: `1px solid ${color}55`,
                         display: "flex",
                         alignItems: "baseline",
-                        gap: 6,
+                        gap: 8,
                       }}
                     >
-                      <span style={{ fontSize: 10, fontWeight: 700, color, textTransform: "uppercase" }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.4 }}>
                         {g.area}
                       </span>
-                      <span style={{ color: "#3d4560", fontSize: 11 }}>›</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#e8ecf1" }}>{g.especialidad}</span>
-                      <span style={{ fontSize: 10, color: "#6b7280", marginLeft: "auto" }}>
+                      <span style={{ color: "#4a5164", fontSize: 12 }}>›</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#ffffff" }}>{g.especialidad}</span>
+                      <span style={{ fontSize: 10, color: "#8a93a6", marginLeft: "auto", fontWeight: 600 }}>
                         {g.items.length} carpeta{g.items.length !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -572,8 +576,8 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
 }
 
 function AreaMiniCard({ area, pct, total, color, active, onClick }) {
-  const size = 112;
-  const stroke = 10;
+  const size = 128;
+  const stroke = 11;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
@@ -610,23 +614,23 @@ function AreaMiniCard({ area, pct, total, color, active, onClick }) {
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: "stroke-dashoffset .5s ease" }}
         />
-        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="25" fontWeight="700" fill="#e8ecf1">
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="28" fontWeight="700" fill="#e8ecf1">
           {pct}%
         </text>
       </svg>
       <div
         style={{
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: 700,
           color: active ? color : "#c7cede",
           textAlign: "center",
           lineHeight: 1.25,
-          maxWidth: 140,
+          maxWidth: 160,
         }}
       >
         {area}
       </div>
-      <div style={{ fontSize: 11, color: "#6b7280" }}>{total} carpetas</div>
+      <div style={{ fontSize: 12, color: "#6b7280" }}>{total} carpetas</div>
     </button>
   );
 }
