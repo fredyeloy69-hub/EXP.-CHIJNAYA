@@ -88,6 +88,26 @@ export default function Dashboard() {
   const [eventos, setEventos] = useState([]);
   const [filtroArea, setFiltroArea] = useState("Todas");
   const [filtroEstado, setFiltroEstado] = useState("pendientes"); // pendientes | incompleta | vacia | completa | todas
+  const [sincronizando, setSincronizando] = useState(false);
+  const [mensajeSync, setMensajeSync] = useState(null);
+
+  async function handleSync() {
+    setSincronizando(true);
+    setMensajeSync(null);
+    try {
+      const res = await fetch("/api/manual-sync", { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        setMensajeSync({ tipo: "ok", texto: `Listo — ${data.eventos} eventos nuevos detectados` });
+      } else {
+        setMensajeSync({ tipo: "error", texto: `Error: ${data.error || "desconocido"}` });
+      }
+    } catch (err) {
+      setMensajeSync({ tipo: "error", texto: "Error de conexión al sincronizar" });
+    } finally {
+      setSincronizando(false);
+    }
+  }
 
   useEffect(() => {
     const unsubResumen = onSnapshot(doc(db, "_meta", "resumen"), (snap) => {
@@ -165,10 +185,49 @@ export default function Dashboard() {
       }}
     >
       <div style={{ maxWidth: 1500, margin: "0 auto", padding: "32px 28px", color: "#e8ecf1" }}>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Expediente Técnico — C.S. Chijnaya</h1>
-      <p style={{ color: "#8a93a6", marginTop: 0, marginBottom: 28 }}>
-        Estado en tiempo real de la carga de documentación
-      </p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, marginBottom: 4 }}>Expediente Técnico — C.S. Chijnaya</h1>
+          <p style={{ color: "#8a93a6", marginTop: 0, marginBottom: 4 }}>
+            Estado en tiempo real de la carga de documentación
+          </p>
+          {resumen?.ultimaSync?.toDate && (
+            <p style={{ color: "#4a5164", fontSize: 11, marginTop: 0 }}>
+              Última sincronización: {tiempoRelativo(resumen.ultimaSync.toDate())}
+            </p>
+          )}
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <button
+            onClick={handleSync}
+            disabled={sincronizando}
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              padding: "10px 18px",
+              borderRadius: 10,
+              border: "1px solid #ff8a3d55",
+              background: sincronizando ? "#1c2333" : "linear-gradient(90deg,#ff8a3d22,#ff5e3a22)",
+              color: sincronizando ? "#6b7280" : "#ff9d5c",
+              cursor: sincronizando ? "not-allowed" : "pointer",
+              boxShadow: sincronizando ? "none" : "0 0 14px rgba(255,138,61,.25)",
+            }}
+          >
+            {sincronizando ? "⟳ Sincronizando..." : "⟳ Sincronizar ahora"}
+          </button>
+          {mensajeSync && (
+            <p
+              style={{
+                fontSize: 11,
+                marginTop: 6,
+                color: mensajeSync.tipo === "ok" ? "#2ecc71" : "#e74c3c",
+              }}
+            >
+              {mensajeSync.texto}
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* Barra de progreso — estilo "barra de energía", debe resaltar sobre el resto */}
       <div style={{ marginBottom: 32 }}>
@@ -287,59 +346,93 @@ export default function Dashboard() {
                   : "No hay carpetas que coincidan con el filtro."}
               </p>
             )}
-            {visibles.map((c) => {
-              const area = c.area || "Sin área";
-              const detalle = c.detalle || c.estado;
-              const driveUrl = `https://drive.google.com/drive/folders/${c.id}`;
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => window.open(driveUrl, "_blank", "noopener,noreferrer")}
-                  style={{
-                    padding: "12px 16px",
-                    borderBottom: "1px solid #1f2740",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#1b2338")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  title="Abrir esta carpeta en Google Drive"
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <RutaJerarquica ruta={c.ruta} nombre={c.nombre} />
-                    <span
+            {(() => {
+              // Agrupar por "especialidad": segundo nivel de la ruta, dentro de cada area.
+              // Ej: "PROYECTO PRINCIPAL / 11. ESTUDIOS BASICOS / 11.1_..." se agrupa bajo
+              // el encabezado "PROYECTO PRINCIPAL › 11. ESTUDIOS BASICOS"
+              const grupos = {};
+              const ordenGrupos = [];
+              for (const c of visibles) {
+                const partes = (c.ruta || c.nombre || "").split(" / ").filter(Boolean);
+                const especialidad = partes.length > 1 ? partes[1] : "(raíz)";
+                const key = `${c.area || "Sin área"} / ${especialidad}`;
+                if (!grupos[key]) {
+                  grupos[key] = { area: c.area || "Sin área", especialidad, items: [] };
+                  ordenGrupos.push(key);
+                }
+                grupos[key].items.push(c);
+              }
+              ordenGrupos.sort((a, b) => a.localeCompare(b));
+
+              return ordenGrupos.map((key) => {
+                const g = grupos[key];
+                const color = colorForArea(g.area);
+                return (
+                  <div key={key}>
+                    <div
                       style={{
-                        fontSize: 10,
-                        padding: "2px 8px",
-                        borderRadius: 20,
-                        background: ESTADO_COLOR[c.estado] + "22",
-                        color: ESTADO_COLOR[c.estado],
-                        textTransform: "uppercase",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        flexShrink: 0,
+                        padding: "9px 16px",
+                        background: color + "14",
+                        borderTop: `1px solid ${color}33`,
+                        borderBottom: `1px solid ${color}33`,
+                        display: "flex",
+                        alignItems: "baseline",
+                        gap: 6,
                       }}
                     >
-                      {c.estado}
-                    </span>
+                      <span style={{ fontSize: 10, fontWeight: 700, color, textTransform: "uppercase" }}>
+                        {g.area}
+                      </span>
+                      <span style={{ color: "#3d4560", fontSize: 11 }}>›</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#e8ecf1" }}>{g.especialidad}</span>
+                      <span style={{ fontSize: 10, color: "#6b7280", marginLeft: "auto" }}>
+                        {g.items.length} carpeta{g.items.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    {g.items.map((c) => {
+                      const detalle = c.detalle || c.estado;
+                      const driveUrl = `https://drive.google.com/drive/folders/${c.id}`;
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => window.open(driveUrl, "_blank", "noopener,noreferrer")}
+                          style={{
+                            padding: "10px 16px 10px 24px",
+                            borderBottom: "1px solid #1f2740",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#1b2338")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          title="Abrir esta carpeta en Google Drive"
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                            <RutaJerarquica ruta={c.ruta} nombre={c.nombre} skipLevels={2} />
+                            <span
+                              style={{
+                                fontSize: 10,
+                                padding: "2px 8px",
+                                borderRadius: 20,
+                                background: ESTADO_COLOR[c.estado] + "22",
+                                color: ESTADO_COLOR[c.estado],
+                                textTransform: "uppercase",
+                                fontWeight: 600,
+                                whiteSpace: "nowrap",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {c.estado}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                            <span style={{ fontSize: 11, color: "#8a93a6" }}>{detalle}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        padding: "2px 8px",
-                        borderRadius: 6,
-                        background: colorForArea(area) + "22",
-                        color: colorForArea(area),
-                        fontWeight: 600,
-                      }}
-                    >
-                      {area}
-                    </span>
-                    <span style={{ fontSize: 11, color: "#8a93a6" }}>{detalle}</span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         </div>
 
@@ -444,8 +537,11 @@ export default function Dashboard() {
 // Muestra la ruta como breadcrumb jerarquico: niveles padre chicos/grises,
 // nombre final de la carpeta grande y resaltado. Si hay mas de 4 niveles,
 // colapsa los del medio con "…" para que siga siendo legible.
-function RutaJerarquica({ ruta, nombre }) {
-  const partes = (ruta || nombre || "").split(" / ").filter(Boolean);
+function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
+  let partes = (ruta || nombre || "").split(" / ").filter(Boolean);
+  if (skipLevels > 0 && partes.length > skipLevels) {
+    partes = partes.slice(skipLevels);
+  }
   let mostrar = partes;
   if (partes.length > 4) {
     mostrar = [partes[0], "…", partes[partes.length - 2], partes[partes.length - 1]];
