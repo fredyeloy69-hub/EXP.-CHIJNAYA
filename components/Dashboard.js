@@ -369,28 +369,28 @@ export default function Dashboard() {
 
               return ordenGrupos.map((key) => {
                 const g = grupos[key];
-                const HEADER_COLOR = "#22e5a6";
-                const color = HEADER_COLOR;
+                const ACCENT_GREEN = "#22e5a6"; // usado en el borde lateral
+                const TEXT_GREEN = "#0a8f5b"; // verde mas oscuro, buen contraste sobre blanco
                 return (
                   <div key={key}>
                     <div
                       style={{
                         padding: "10px 16px 10px 14px",
-                        background: "#0a0e1c",
-                        borderLeft: `4px solid ${color}`,
+                        background: "#ffffff",
+                        borderLeft: `4px solid ${ACCENT_GREEN}`,
                         borderTop: "1px solid #1f2740",
-                        borderBottom: `1px solid ${color}55`,
+                        borderBottom: "1px solid #d8dde5",
                         display: "flex",
                         alignItems: "baseline",
                         gap: 8,
                       }}
                     >
-                      <span style={{ fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: TEXT_GREEN, textTransform: "uppercase", letterSpacing: 0.4 }}>
                         {g.area}
                       </span>
-                      <span style={{ color: "#4a5164", fontSize: 12 }}>›</span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: "#ffffff" }}>{g.especialidad}</span>
-                      <span style={{ fontSize: 10, color: "#8a93a6", marginLeft: "auto", fontWeight: 600 }}>
+                      <span style={{ color: "#9aa2b1", fontSize: 12 }}>›</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#0d0f14" }}>{g.especialidad}</span>
+                      <span style={{ fontSize: 10, color: "#5b6472", marginLeft: "auto", fontWeight: 600 }}>
                         {g.items.length} carpeta{g.items.length !== 1 ? "s" : ""}
                       </span>
                     </div>
@@ -428,8 +428,8 @@ export default function Dashboard() {
                               {c.estado}
                             </span>
                           </div>
-                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-                            <span style={{ fontSize: 11, color: "#8a93a6" }}>{detalle}</span>
+                          <div style={{ marginTop: 8 }}>
+                            <span style={{ fontSize: 33, fontWeight: 600, color: "#c7cede", lineHeight: 1.3 }}>{detalle}</span>
                           </div>
                         </div>
                       );
