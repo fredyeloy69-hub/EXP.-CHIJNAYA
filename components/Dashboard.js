@@ -51,6 +51,37 @@ const EVENTO_LABEL = {
   carpeta_movida: "movió la carpeta",
 };
 
+const EVENTO_COLOR = {
+  archivo_subido: "#2ecc71",
+  archivo_reemplazado: "#f39c12",
+  archivo_borrado: "#e74c3c",
+  carpeta_creada: "#3d7dff",
+  carpeta_borrada: "#e74c3c",
+  carpeta_movida: "#a35bff",
+};
+
+const EVENTO_ICONO = {
+  archivo_subido: "↑",
+  archivo_reemplazado: "⟲",
+  archivo_borrado: "✕",
+  carpeta_creada: "+",
+  carpeta_borrada: "✕",
+  carpeta_movida: "⇄",
+};
+
+function tiempoRelativo(date) {
+  if (!date) return "...";
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "justo ahora";
+  if (diffMin < 60) return `hace ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `hace ${diffH} h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `hace ${diffD} d`;
+  return date.toLocaleDateString("es-PE");
+}
+
 export default function Dashboard() {
   const [resumen, setResumen] = useState(null);
   const [carpetas, setCarpetas] = useState([]);
@@ -314,7 +345,34 @@ export default function Dashboard() {
 
         {/* Log de actividad */}
         <div>
-          <h2 style={{ fontSize: 16, color: "#c7cede" }}>Actividad reciente</h2>
+          <h2 style={{ fontSize: 16, color: "#c7cede", marginBottom: 8 }}>Actividad reciente</h2>
+
+          {/* Resumen de conteo por tipo, de los ultimos eventos cargados */}
+          {eventos.length > 0 && (
+            <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+              {Object.entries(
+                eventos.reduce((acc, e) => {
+                  acc[e.tipo] = (acc[e.tipo] || 0) + 1;
+                  return acc;
+                }, {})
+              ).map(([tipo, count]) => (
+                <span
+                  key={tipo}
+                  style={{
+                    fontSize: 10,
+                    padding: "3px 9px",
+                    borderRadius: 20,
+                    background: (EVENTO_COLOR[tipo] || "#6b7280") + "22",
+                    color: EVENTO_COLOR[tipo] || "#6b7280",
+                    fontWeight: 700,
+                  }}
+                >
+                  {EVENTO_ICONO[tipo] || "•"} {count} {EVENTO_LABEL[tipo] || tipo}
+                </span>
+              ))}
+            </div>
+          )}
+
           <div
             style={{
               background: "rgba(21,27,43,.5)",
@@ -328,18 +386,53 @@ export default function Dashboard() {
             {eventos.length === 0 && (
               <p style={{ padding: 16, color: "#8a93a6" }}>Sin eventos todavía.</p>
             )}
-            {eventos.map((e) => (
-              <div key={e.id} style={{ padding: "10px 16px", borderBottom: "1px solid #1f2740" }}>
-                <div style={{ fontSize: 13 }}>
-                  <strong>{e.usuario}</strong> {EVENTO_LABEL[e.tipo] || e.tipo}{" "}
-                  <strong>{e.item}</strong>
+            {eventos.map((e) => {
+              const color = EVENTO_COLOR[e.tipo] || "#6b7280";
+              const icono = EVENTO_ICONO[e.tipo] || "•";
+              const fecha = e.timestamp?.toDate ? e.timestamp.toDate() : null;
+              return (
+                <div
+                  key={e.id}
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    padding: "10px 14px",
+                    borderBottom: "1px solid #1f2740",
+                  }}
+                >
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      width: 26,
+                      height: 26,
+                      borderRadius: "50%",
+                      background: color + "22",
+                      border: `1.5px solid ${color}`,
+                      color: color,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      marginTop: 1,
+                    }}
+                  >
+                    {icono}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13 }}>
+                      <strong>{e.usuario}</strong>{" "}
+                      <span style={{ color }}>{EVENTO_LABEL[e.tipo] || e.tipo}</span>{" "}
+                      <strong>{e.item}</strong>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>{e.ruta}</div>
+                    <div style={{ fontSize: 10, color: "#4a5164", marginTop: 2 }} title={fecha ? fecha.toLocaleString("es-PE") : ""}>
+                      {tiempoRelativo(fecha)}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: "#6b7280" }}>{e.ruta}</div>
-                <div style={{ fontSize: 10, color: "#4a5164" }}>
-                  {e.timestamp?.toDate ? e.timestamp.toDate().toLocaleString("es-PE") : "..."}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
