@@ -369,7 +369,8 @@ export default function Dashboard() {
 
               return ordenGrupos.map((key) => {
                 const g = grupos[key];
-                const color = "#22e5a6";
+                const HEADER_COLOR = "#22e5a6";
+                const color = HEADER_COLOR;
                 return (
                   <div key={key}>
                     <div
@@ -409,17 +410,17 @@ export default function Dashboard() {
                           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           title="Abrir esta carpeta en Google Drive"
                         >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                             <RutaJerarquica ruta={c.ruta} nombre={c.nombre} skipLevels={2} />
                             <span
                               style={{
-                                fontSize: 30,
-                                padding: "6px 16px",
-                                borderRadius: 22,
+                                fontSize: 10,
+                                padding: "2px 8px",
+                                borderRadius: 20,
                                 background: ESTADO_COLOR[c.estado] + "22",
                                 color: ESTADO_COLOR[c.estado],
                                 textTransform: "uppercase",
-                                fontWeight: 800,
+                                fontWeight: 600,
                                 whiteSpace: "nowrap",
                                 flexShrink: 0,
                               }}
