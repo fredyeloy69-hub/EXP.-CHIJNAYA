@@ -334,14 +334,6 @@ export default function Dashboard() {
             <h2 style={{ fontSize: 16, color: "#c7cede", margin: 0 }}>
               Carpetas — {ESTADO_FILTRO_LABEL[filtroEstado]}{areaLabel}
             </h2>
-            <div style={{ display: "flex", gap: 6 }}>
-              <button
-                onClick={() => setColapsados((prev) => ({ ...prev, __all: !prev.__all }))}
-                style={{ ...chipStyle(false, "#8a93a6"), fontWeight: 700 }}
-              >
-                {colapsados.__all ? "▸ Expandir todo" : "▾ Colapsar todo"}
-              </button>
-            </div>
           </div>
 
           {/* Buscador rápido por nombre/ruta de carpeta */}
@@ -429,7 +421,7 @@ export default function Dashboard() {
           )}
 
           {/* Filtro por estado — botones de un click, sin desplegable */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
             {ESTADO_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -439,6 +431,12 @@ export default function Dashboard() {
                 {opt.label}
               </button>
             ))}
+            <button
+              onClick={() => setColapsados((prev) => ({ ...prev, __all: !prev.__all }))}
+              style={{ ...chipStyle(false, "#8a93a6"), fontWeight: 700 }}
+            >
+              {colapsados.__all ? "▸ Expandir todo" : "▾ Colapsar todo"}
+            </button>
           </div>
 
           <div
