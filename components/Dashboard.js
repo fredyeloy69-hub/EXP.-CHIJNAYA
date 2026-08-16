@@ -489,10 +489,10 @@ export default function Dashboard() {
                       onClick={() => toggleGrupo(key)}
                       style={{
                         padding: "10px 16px 10px 14px",
-                        background: "#ffffff",
+                        background: "#dce8f7",
                         borderLeft: `4px solid ${vaciasGrupo > 0 ? "#e74c3c" : tienePendientes ? "#f39c12" : "#2ecc71"}`,
                         borderTop: "1px solid #1f2740",
-                        borderBottom: "1px solid #d8dde5",
+                        borderBottom: "1px solid #b9cbe6",
                         display: "flex",
                         alignItems: "baseline",
                         gap: 8,
@@ -501,14 +501,14 @@ export default function Dashboard() {
                       }}
                       title={grupoColapsado ? "Click para expandir" : "Click para colapsar"}
                     >
-                      <span style={{ fontSize: 12, color: "#8a93a6", transform: grupoColapsado ? "rotate(-90deg)" : "none", display: "inline-block", transition: "transform .15s ease" }}>
+                      <span style={{ fontSize: 12, color: "#5a6f8f", transform: grupoColapsado ? "rotate(-90deg)" : "none", display: "inline-block", transition: "transform .15s ease" }}>
                         ▾
                       </span>
                       <span style={{ fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.4 }}>
                         {g.area}
                       </span>
-                      <span style={{ color: "#9aa1ae", fontSize: 12 }}>›</span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: "#000000" }}>{g.especialidad}</span>
+                      <span style={{ color: "#7891b5", fontSize: 12 }}>›</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#12213f" }}>{g.especialidad}</span>
                       <span style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
                         {tienePendientes && (
                           <span
@@ -517,14 +517,14 @@ export default function Dashboard() {
                               padding: "2px 8px",
                               borderRadius: 20,
                               background: (vaciasGrupo > 0 ? "#e74c3c" : "#f39c12") + "22",
-                              color: vaciasGrupo > 0 ? "#c0392b" : "#c67c0e",
+                              color: vaciasGrupo > 0 ? "#c0392b" : "#93590a",
                               fontWeight: 700,
                             }}
                           >
                             {pendientesGrupo} pendiente{pendientesGrupo !== 1 ? "s" : ""}
                           </span>
                         )}
-                        <span style={{ fontSize: 10, color: "#8a93a6", fontWeight: 600 }}>
+                        <span style={{ fontSize: 10, color: "#5a6f8f", fontWeight: 600 }}>
                           {g.items.length} carpeta{g.items.length !== 1 ? "s" : ""}
                         </span>
                       </span>
