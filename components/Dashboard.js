@@ -10,6 +10,9 @@ import {
   query,
   limit,
 } from "firebase/firestore";
+import { generarReportePorArea } from "@/lib/exportarReporte";
+
+const COLLAPSE_STORAGE_KEY = "chijnaya_grupos_colapsados";
 
 const ESTADO_COLOR = {
   completa: "#2ecc71",
@@ -90,6 +93,44 @@ export default function Dashboard() {
   const [filtroEstado, setFiltroEstado] = useState("pendientes"); // pendientes | incompleta | vacia | completa | todas
   const [sincronizando, setSincronizando] = useState(false);
   const [mensajeSync, setMensajeSync] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [colapsados, setColapsados] = useState({}); // { [groupKey]: true } => colapsado
+  const [colapsoListo, setColapsoListo] = useState(false); // evita pisar localStorage antes de leerlo
+  const [exportandoArea, setExportandoArea] = useState(null);
+
+  // Cargar estado de colapso guardado (una sola vez, al montar)
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+      if (guardado) setColapsados(JSON.parse(guardado));
+    } catch {
+      // localStorage no disponible o corrupto — seguimos con todo expandido
+    }
+    setColapsoListo(true);
+  }, []);
+
+  // Guardar cada vez que cambie (después de la carga inicial)
+  useEffect(() => {
+    if (!colapsoListo) return;
+    try {
+      localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(colapsados));
+    } catch {
+      // si falla el guardado no rompemos nada, solo no persiste
+    }
+  }, [colapsados, colapsoListo]);
+
+  function toggleGrupo(key) {
+    setColapsados((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function handleExportarArea(areaNombre, carpetasDelArea) {
+    setExportandoArea(areaNombre);
+    try {
+      generarReportePorArea(areaNombre, carpetasDelArea);
+    } finally {
+      setExportandoArea(null);
+    }
+  }
 
   async function handleSync() {
     setSincronizando(true);
@@ -142,6 +183,14 @@ export default function Dashboard() {
     new Set(carpetas.map((c) => c.area || "Sin área"))
   ).sort();
 
+  // Todas las carpetas de cada área (sin filtros), para exportar el reporte completo del área
+  const carpetasPorArea = {};
+  for (const c of carpetas) {
+    const a = c.area || "Sin área";
+    if (!carpetasPorArea[a]) carpetasPorArea[a] = [];
+    carpetasPorArea[a].push(c);
+  }
+
   // Estadisticas por area: total, completas, incompletas, vacias — para el circulo de progreso
   const areaStats = {};
   for (const c of carpetas) {
@@ -166,6 +215,13 @@ export default function Dashboard() {
 
   if (filtroArea !== "Todas") {
     visibles = visibles.filter((c) => (c.area || "Sin área") === filtroArea);
+  }
+
+  if (busqueda.trim()) {
+    const q = busqueda.trim().toLowerCase();
+    visibles = visibles.filter((c) =>
+      (c.nombre || "").toLowerCase().includes(q) || (c.ruta || "").toLowerCase().includes(q)
+    );
   }
 
   const ESTADO_FILTRO_LABEL = {
@@ -274,10 +330,62 @@ export default function Dashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 24 }}>
         {/* Carpetas pendientes */}
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
             <h2 style={{ fontSize: 16, color: "#c7cede", margin: 0 }}>
               Carpetas — {ESTADO_FILTRO_LABEL[filtroEstado]}{areaLabel}
             </h2>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={() => setColapsados((prev) => ({ ...prev, __all: !prev.__all }))}
+                style={{ ...chipStyle(false, "#8a93a6"), fontWeight: 700 }}
+              >
+                {colapsados.__all ? "▸ Expandir todo" : "▾ Colapsar todo"}
+              </button>
+            </div>
+          </div>
+
+          {/* Buscador rápido por nombre/ruta de carpeta */}
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="🔍 Buscar carpeta por nombre..."
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              background: "#151b2b",
+              color: "#e8ecf1",
+              border: "1px solid #2a3350",
+              borderRadius: 8,
+              padding: "9px 12px",
+              fontSize: 13,
+              marginBottom: 12,
+              outline: "none",
+            }}
+          />
+
+          {/* Exportar reporte institucional — un PDF por cada área */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+            {areas.map((a) => (
+              <button
+                key={a}
+                onClick={() => handleExportarArea(a, carpetasPorArea[a] || [])}
+                disabled={exportandoArea === a}
+                style={{
+                  fontSize: 11,
+                  padding: "6px 12px",
+                  borderRadius: 20,
+                  border: "1px solid #2a3350",
+                  background: "#151b2b",
+                  color: exportandoArea === a ? "#4a5164" : "#c7cede",
+                  fontWeight: 600,
+                  cursor: exportandoArea === a ? "not-allowed" : "pointer",
+                }}
+                title={`Exportar reporte PDF de ${a}`}
+              >
+                📄 {exportandoArea === a ? "Generando..." : `Exportar ${a}`}
+              </button>
+            ))}
           </div>
 
           {/* Grilla de áreas — mini círculos de progreso, un click para filtrar */}
@@ -369,32 +477,59 @@ export default function Dashboard() {
 
               return ordenGrupos.map((key) => {
                 const g = grupos[key];
-                const HEADER_COLOR = "#22e5a6";
+                const HEADER_COLOR = "#1a9c6b"; // verde con buen contraste sobre blanco
                 const color = HEADER_COLOR;
+                const pendientesGrupo = g.items.filter((c) => c.estado !== "completa").length;
+                const vaciasGrupo = g.items.filter((c) => c.estado === "vacia").length;
+                const tienePendientes = pendientesGrupo > 0;
+                const grupoColapsado = colapsados.__all ? !colapsados[key] : !!colapsados[key];
                 return (
                   <div key={key}>
                     <div
+                      onClick={() => toggleGrupo(key)}
                       style={{
                         padding: "10px 16px 10px 14px",
-                        background: "#0a0e1c",
-                        borderLeft: `4px solid ${color}`,
+                        background: "#ffffff",
+                        borderLeft: `4px solid ${vaciasGrupo > 0 ? "#e74c3c" : tienePendientes ? "#f39c12" : "#2ecc71"}`,
                         borderTop: "1px solid #1f2740",
-                        borderBottom: `1px solid ${color}55`,
+                        borderBottom: "1px solid #d8dde5",
                         display: "flex",
                         alignItems: "baseline",
                         gap: 8,
+                        cursor: "pointer",
+                        userSelect: "none",
                       }}
+                      title={grupoColapsado ? "Click para expandir" : "Click para colapsar"}
                     >
+                      <span style={{ fontSize: 12, color: "#8a93a6", transform: grupoColapsado ? "rotate(-90deg)" : "none", display: "inline-block", transition: "transform .15s ease" }}>
+                        ▾
+                      </span>
                       <span style={{ fontSize: 11, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.4 }}>
                         {g.area}
                       </span>
-                      <span style={{ color: "#4a5164", fontSize: 12 }}>›</span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: "#ffffff" }}>{g.especialidad}</span>
-                      <span style={{ fontSize: 10, color: "#8a93a6", marginLeft: "auto", fontWeight: 600 }}>
-                        {g.items.length} carpeta{g.items.length !== 1 ? "s" : ""}
+                      <span style={{ color: "#9aa1ae", fontSize: 12 }}>›</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#000000" }}>{g.especialidad}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+                        {tienePendientes && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              padding: "2px 8px",
+                              borderRadius: 20,
+                              background: (vaciasGrupo > 0 ? "#e74c3c" : "#f39c12") + "22",
+                              color: vaciasGrupo > 0 ? "#c0392b" : "#c67c0e",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {pendientesGrupo} pendiente{pendientesGrupo !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 10, color: "#8a93a6", fontWeight: 600 }}>
+                          {g.items.length} carpeta{g.items.length !== 1 ? "s" : ""}
+                        </span>
                       </span>
                     </div>
-                    {g.items.map((c) => {
+                    {!grupoColapsado && g.items.map((c) => {
                       const detalle = c.detalle || c.estado;
                       const driveUrl = `https://drive.google.com/drive/folders/${c.id}`;
                       return (
