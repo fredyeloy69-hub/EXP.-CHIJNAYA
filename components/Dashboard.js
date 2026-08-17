@@ -275,15 +275,15 @@ export default function Dashboard() {
         .chijnaya-fondo-animado {
           background: linear-gradient(
             -45deg,
-            #041416,
-            #0a2226,
-            #0e2f36,
-            #0a3d42,
-            #0a2226,
-            #041416
+            #031012,
+            #0a2c33,
+            #0d3e46,
+            #124f57,
+            #0a2c33,
+            #031012
           );
           background-size: 400% 400%;
-          animation: chijnayaGradiente 22s ease infinite;
+          animation: chijnayaGradiente 14s ease infinite;
         }
         @keyframes chijnayaGradiente {
           0%   { background-position: 0% 50%; }
@@ -293,12 +293,22 @@ export default function Dashboard() {
         @media (prefers-reduced-motion: reduce) {
           .chijnaya-fondo-animado { animation: none; }
         }
+        .chijnaya-barra-avance {
+          animation: chijnayaRayas 1.1s linear infinite;
+        }
+        @keyframes chijnayaRayas {
+          from { background-position: 0 0, 0 0; }
+          to   { background-position: 36px 0, 0 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .chijnaya-barra-avance { animation: none; }
+        }
       `}</style>
-      <div style={{ maxWidth: 1500, margin: "0 auto", padding: "32px 28px", color: "#eef7f5" }}>
+      <div style={{ maxWidth: modoPresentacion ? "100%" : 1500, margin: "0 auto", padding: modoPresentacion ? "36px 48px" : "32px 28px", color: "#eef7f5" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, marginBottom: 4 }}>Expediente Técnico — C.S. Chijnaya</h1>
-          <p style={{ color: "#b7c9c6", marginTop: 0, marginBottom: 4 }}>
+          <h1 style={{ fontSize: modoPresentacion ? 36 : 24, marginBottom: 4 }}>Expediente Técnico — C.S. Chijnaya</h1>
+          <p style={{ color: "#b7c9c6", marginTop: 0, marginBottom: 4, fontSize: modoPresentacion ? 16 : 14 }}>
             Estado en tiempo real de la carga de documentación
           </p>
           {resumen?.ultimaSync?.toDate && (
@@ -375,11 +385,13 @@ export default function Dashboard() {
           }}
         >
           <div
+            className="chijnaya-barra-avance"
             style={{
               width: `${pct}%`,
               height: "100%",
               backgroundImage:
-                "repeating-linear-gradient(45deg, rgba(255,255,255,.16) 0px, rgba(255,255,255,.16) 9px, transparent 9px, transparent 18px), linear-gradient(90deg,#17a398,#0e7c72)",
+                "repeating-linear-gradient(45deg, rgba(255,255,255,.18) 0px, rgba(255,255,255,.18) 9px, transparent 9px, transparent 18px), linear-gradient(90deg,#17a398,#0e7c72)",
+              backgroundSize: "36px 36px, 100% 100%",
               transition: "width .4s ease",
               boxShadow: "0 0 22px rgba(14,124,114,.65)",
               borderRadius: 17,
@@ -390,24 +402,32 @@ export default function Dashboard() {
 
       {/* Contadores */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 32 }}>
-        <Card label="Carpetas finales" value={resumen?.totalFinales ?? "–"} color="#17a398" />
-        <Card label="Completas" value={resumen?.completas ?? "–"} color="#2ecc71" />
-        <Card label="Incompletas" value={resumen?.incompletas ?? "–"} color="#f39c12" />
-        <Card label="Vacías" value={resumen?.vacias ?? "–"} color="#e74c3c" />
+        <Card label="Carpetas finales" value={resumen?.totalFinales ?? "–"} color="#17a398" grande={modoPresentacion} />
+        <Card label="Completas" value={resumen?.completas ?? "–"} color="#2ecc71" grande={modoPresentacion} />
+        <Card label="Incompletas" value={resumen?.incompletas ?? "–"} color="#f39c12" grande={modoPresentacion} />
+        <Card label="Vacías" value={resumen?.vacias ?? "–"} color="#e74c3c" grande={modoPresentacion} />
       </div>
 
-      {/* Tendencia de avance + mapa de calor de actividad — siempre visibles */}
-      <div style={{ display: "grid", gridTemplateColumns: modoPresentacion ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
-        <TendenciaChart historial={historial} grande={modoPresentacion} />
-        <ActividadHeatmap eventos={eventosHeatmap} grande={modoPresentacion} />
-      </div>
+      {/* Tendencia de avance + mapa de calor de actividad */}
+      {historial.length >= 2 ? (
+        <div style={{ display: "grid", gridTemplateColumns: modoPresentacion ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
+          <TendenciaChart historial={historial} grande={modoPresentacion} />
+          <ActividadHeatmap eventos={eventosHeatmap} grande={modoPresentacion} />
+        </div>
+      ) : (
+        <div style={{ marginBottom: 32 }}>
+          <ActividadHeatmap eventos={eventosHeatmap} grande={modoPresentacion} />
+        </div>
+      )}
 
       {modoPresentacion && (
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 16,
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: 28,
+            justifyItems: "center",
+            marginTop: 8,
           }}
         >
           {areas.map((a) => {
@@ -422,7 +442,7 @@ export default function Dashboard() {
                 color={colorForArea(a)}
                 active={false}
                 onClick={() => {}}
-                tamano={170}
+                tamano={260}
               />
             );
           })}
@@ -853,10 +873,13 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
 
 function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
   const size = tamano || 128;
-  const stroke = 11;
+  const stroke = Math.max(9, Math.round(size * 0.06));
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
+  const fontPct = Math.round(size * 0.22);
+  const fontLabel = Math.max(14, Math.round(size * 0.09));
+  const fontCount = Math.max(12, Math.round(size * 0.07));
 
   return (
     <button
@@ -865,7 +888,7 @@ function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 10,
+        gap: Math.round(size * 0.07),
         padding: "18px 10px",
         borderRadius: 14,
         border: `2px solid ${active ? color : "#1f4a4a"}`,
@@ -890,23 +913,44 @@ function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: "stroke-dashoffset .5s ease" }}
         />
-        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="28" fontWeight="700" fill="#eef7f5">
+        {/* Arco chiquito que gira sin parar, para dar sensación de "actualizando en vivo" */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#eef7f5"
+          strokeWidth={Math.max(2, stroke * 0.28)}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference * 0.09} ${circumference * 0.91}`}
+          opacity="0.75"
+        >
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from={`0 ${size / 2} ${size / 2}`}
+            to={`360 ${size / 2} ${size / 2}`}
+            dur="1.8s"
+            repeatCount="indefinite"
+          />
+        </circle>
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize={fontPct} fontWeight="700" fill="#eef7f5">
           {pct}%
         </text>
       </svg>
       <div
         style={{
-          fontSize: 14,
+          fontSize: fontLabel,
           fontWeight: 700,
           color: active ? color : "#dceeec",
           textAlign: "center",
           lineHeight: 1.25,
-          maxWidth: 160,
+          maxWidth: size + 60,
         }}
       >
         {area}
       </div>
-      <div style={{ fontSize: 12, color: "#9db3b0" }}>{total} carpetas</div>
+      <div style={{ fontSize: fontCount, color: "#9db3b0" }}>{total} carpetas</div>
     </button>
   );
 }
@@ -954,6 +998,26 @@ function AreaProgressPanel({ area, stats, color }) {
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
           style={{ transition: "stroke-dashoffset .5s ease" }}
         />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#eef7f5"
+          strokeWidth={Math.max(2, stroke * 0.28)}
+          strokeLinecap="round"
+          strokeDasharray={`${circumference * 0.09} ${circumference * 0.91}`}
+          opacity="0.75"
+        >
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from={`0 ${size / 2} ${size / 2}`}
+            to={`360 ${size / 2} ${size / 2}`}
+            dur="1.8s"
+            repeatCount="indefinite"
+          />
+        </circle>
         <text
           x="50%"
           y="50%"
@@ -1036,21 +1100,21 @@ const selectStyle = {
   fontSize: 12,
 };
 
-function Card({ label, value, color }) {
+function Card({ label, value, color, grande }) {
   return (
     <div
       style={{
         background: "rgba(14,37,41,.65)",
         backdropFilter: "blur(6px)",
         borderRadius: 12,
-        padding: "18px",
+        padding: grande ? "26px" : "18px",
         border: `1px solid ${color}33`,
         borderTop: `3px solid ${color}`,
         boxShadow: `0 0 20px ${color}22`,
       }}
     >
-      <div style={{ fontSize: 28, fontWeight: 700, textShadow: `0 0 14px ${color}55` }}>{value}</div>
-      <div style={{ fontSize: 12, color: "#b7c9c6", letterSpacing: 0.3 }}>{label}</div>
+      <div style={{ fontSize: grande ? 44 : 28, fontWeight: 700, textShadow: `0 0 14px ${color}55` }}>{value}</div>
+      <div style={{ fontSize: grande ? 15 : 12, color: "#b7c9c6", letterSpacing: 0.3 }}>{label}</div>
     </div>
   );
 }
