@@ -99,6 +99,9 @@ export default function Dashboard() {
   const [colapsoListo, setColapsoListo] = useState(false); // evita pisar localStorage antes de leerlo
   const [exportandoArea, setExportandoArea] = useState(null);
   const [exportandoExcelArea, setExportandoExcelArea] = useState(null);
+  const [modoPresentacion, setModoPresentacion] = useState(false);
+  const [historial, setHistorial] = useState([]);
+  const [eventosHeatmap, setEventosHeatmap] = useState([]);
 
   // Cargar estado de colapso guardado (una sola vez, al montar)
   useEffect(() => {
@@ -179,10 +182,32 @@ export default function Dashboard() {
       setEventos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
+    // Ventana más amplia de eventos solo para el heatmap de actividad (no se muestra en la lista)
+    const eventosHeatmapQuery = query(
+      collection(db, "eventos"),
+      orderBy("timestamp", "desc"),
+      limit(600)
+    );
+    const unsubEventosHeatmap = onSnapshot(eventosHeatmapQuery, (snap) => {
+      setEventosHeatmap(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    // Historial diario (guardado por syncEngine) para el gráfico de tendencia
+    const historialQuery = query(
+      collection(db, "historial"),
+      orderBy("fecha", "asc"),
+      limit(90)
+    );
+    const unsubHistorial = onSnapshot(historialQuery, (snap) => {
+      setHistorial(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
     return () => {
       unsubResumen();
       unsubCarpetas();
       unsubEventos();
+      unsubEventosHeatmap();
+      unsubHistorial();
     };
   }, []);
 
@@ -268,6 +293,23 @@ export default function Dashboard() {
         </div>
         <div style={{ textAlign: "right" }}>
           <button
+            onClick={() => setModoPresentacion((v) => !v)}
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              padding: "6px 14px",
+              borderRadius: 20,
+              border: "1px solid #4a3020",
+              background: modoPresentacion ? "#e0a64022" : "#221510",
+              color: modoPresentacion ? "#e0a640" : "#b0a08c",
+              cursor: "pointer",
+              marginBottom: 10,
+            }}
+          >
+            {modoPresentacion ? "✕ Salir de presentación" : "🖥 Modo presentación"}
+          </button>
+          <br />
+          <button
             onClick={handleSync}
             disabled={sincronizando}
             style={{
@@ -338,6 +380,40 @@ export default function Dashboard() {
         <Card label="Vacías" value={resumen?.vacias ?? "–"} color="#e74c3c" />
       </div>
 
+      {/* Tendencia de avance + mapa de calor de actividad — siempre visibles */}
+      <div style={{ display: "grid", gridTemplateColumns: modoPresentacion ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
+        <TendenciaChart historial={historial} grande={modoPresentacion} />
+        <ActividadHeatmap eventos={eventosHeatmap} grande={modoPresentacion} />
+      </div>
+
+      {modoPresentacion && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 16,
+          }}
+        >
+          {areas.map((a) => {
+            const stats = areaStats[a] || { total: 0, completas: 0 };
+            const pctArea = stats.total > 0 ? Math.round((stats.completas / stats.total) * 100) : 0;
+            return (
+              <AreaMiniCard
+                key={a}
+                area={a}
+                pct={pctArea}
+                total={stats.total}
+                color={colorForArea(a)}
+                active={false}
+                onClick={() => {}}
+                tamano={170}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {!modoPresentacion && (
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 24 }}>
         {/* Carpetas pendientes */}
         <div>
@@ -538,6 +614,7 @@ export default function Dashboard() {
                       <span style={{ color: "#a3856a", fontSize: 12 }}>›</span>
                       <span style={{ fontSize: 14, fontWeight: 800, color: "#4a2a12" }}>{g.especialidad}</span>
                       <span style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+                        <MiniDona completas={g.items.length - pendientesGrupo} total={g.items.length} />
                         {tienePendientes && (
                           <span
                             style={{
@@ -661,6 +738,24 @@ export default function Dashboard() {
                     borderBottom: "1px solid #3a2418",
                   }}
                 >
+                  {e.thumbnailLink && (
+                    <img
+                      src={e.thumbnailLink}
+                      alt=""
+                      style={{
+                        flexShrink: 0,
+                        width: 34,
+                        height: 34,
+                        objectFit: "cover",
+                        borderRadius: 6,
+                        border: "1px solid #4a3020",
+                        marginTop: 1,
+                      }}
+                      onError={(ev) => {
+                        ev.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
                   <div
                     style={{
                       flexShrink: 0,
@@ -697,6 +792,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      )}
       </div>
     </div>
   );
@@ -739,8 +835,8 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
   );
 }
 
-function AreaMiniCard({ area, pct, total, color, active, onClick }) {
-  const size = 128;
+function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
+  const size = tamano || 128;
   const stroke = 11;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -873,6 +969,35 @@ function AreaProgressPanel({ area, stats, color }) {
   );
 }
 
+// Mini dona de progreso (completas vs total), para meter dentro del header de cada grupo
+function MiniDona({ completas, total }) {
+  const size = 22;
+  const stroke = 4;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const pct = total > 0 ? completas / total : 0;
+  const offset = circumference - pct * circumference;
+  const color = pct >= 1 ? "#2ecc71" : pct > 0 ? "#f39c12" : "#e74c3c";
+
+  return (
+    <svg width={size} height={size} title={`${completas} de ${total} completas`}>
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#d9c2a0" strokeWidth={stroke} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </svg>
+  );
+}
+
 function chipStyle(active, color) {
   return {
     fontSize: 11,
@@ -910,6 +1035,163 @@ function Card({ label, value, color }) {
     >
       <div style={{ fontSize: 28, fontWeight: 700, textShadow: `0 0 14px ${color}55` }}>{value}</div>
       <div style={{ fontSize: 12, color: "#b0a08c", letterSpacing: 0.3 }}>{label}</div>
+    </div>
+  );
+}
+
+// Gráfico de línea simple (SVG a mano, sin librerías) mostrando el % de avance
+// general día a día, usando los puntos guardados en la colección "historial".
+function TendenciaChart({ historial, grande }) {
+  const alto = grande ? 220 : 150;
+  const ancho = 600; // viewBox — el SVG escala solo al ancho real del contenedor
+
+  return (
+    <div
+      style={{
+        background: "#221510",
+        border: "1px solid #4a3020",
+        borderRadius: 12,
+        padding: "16px 18px",
+      }}
+    >
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#e8dcc8", marginBottom: 10 }}>
+        📈 Tendencia de avance {historial.length > 0 ? `(últimos ${historial.length} días)` : ""}
+      </div>
+
+      {historial.length < 2 ? (
+        <div style={{ fontSize: 12, color: "#8a7a68", padding: "20px 0" }}>
+          Todavía no hay suficiente historial — este gráfico se va llenando con cada sincronización diaria.
+        </div>
+      ) : (
+        (() => {
+          const padding = 26;
+          const puntos = historial.map((h, i) => {
+            const x = padding + (i / (historial.length - 1)) * (ancho - padding * 2);
+            const y = alto - padding - (h.pct / 100) * (alto - padding * 2);
+            return { x, y, pct: h.pct, fecha: h.fecha };
+          });
+          const pathLinea = puntos.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+          const pathArea =
+            `M ${puntos[0].x} ${alto - padding} ` +
+            puntos.map((p) => `L ${p.x} ${p.y}`).join(" ") +
+            ` L ${puntos[puntos.length - 1].x} ${alto - padding} Z`;
+
+          return (
+            <svg viewBox={`0 0 ${ancho} ${alto}`} style={{ width: "100%", height: alto, display: "block" }}>
+              {/* líneas guía horizontales */}
+              {[0, 25, 50, 75, 100].map((v) => {
+                const y = alto - padding - (v / 100) * (alto - padding * 2);
+                return (
+                  <line key={v} x1={padding} y1={y} x2={ancho - padding} y2={y} stroke="#4a3020" strokeWidth="1" strokeDasharray="3,4" />
+                );
+              })}
+              <path d={pathArea} fill="url(#tendenciaGradient)" opacity="0.35" />
+              <path d={pathLinea} fill="none" stroke="#ff8a3d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              {puntos.map((p, i) => (
+                <circle key={i} cx={p.x} cy={p.y} r={i === puntos.length - 1 ? 4.5 : 2.5} fill="#ff8a3d">
+                  <title>{`${p.fecha} — ${p.pct}%`}</title>
+                </circle>
+              ))}
+              <defs>
+                <linearGradient id="tendenciaGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ff8a3d" />
+                  <stop offset="100%" stopColor="#ff8a3d" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {/* etiqueta del último valor */}
+              <text x={puntos[puntos.length - 1].x} y={puntos[puntos.length - 1].y - 10} textAnchor="end" fontSize="13" fontWeight="700" fill="#ffb27a">
+                {puntos[puntos.length - 1].pct}%
+              </text>
+            </svg>
+          );
+        })()
+      )}
+    </div>
+  );
+}
+
+// Mapa de calor tipo GitHub — cuadraditos por día mostrando cuánta actividad hubo
+// (subidas, reemplazos, borrados, etc.), usando la colección "eventos".
+function ActividadHeatmap({ eventos, grande }) {
+  const DIAS = grande ? 119 : 84; // ~17 o ~12 semanas
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
+  // Cuenta eventos por día (clave YYYY-MM-DD)
+  const conteoPorDia = {};
+  for (const e of eventos) {
+    const fecha = e.timestamp?.toDate ? e.timestamp.toDate() : null;
+    if (!fecha) continue;
+    const key = fecha.toISOString().slice(0, 10);
+    conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
+  }
+
+  const dias = [];
+  for (let i = DIAS - 1; i >= 0; i--) {
+    const d = new Date(hoy);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    dias.push({ key, count: conteoPorDia[key] || 0, fecha: d });
+  }
+
+  const maxCount = Math.max(1, ...dias.map((d) => d.count));
+  function intensidad(count) {
+    if (count === 0) return "#3a2418";
+    const ratio = count / maxCount;
+    if (ratio > 0.66) return "#ff5e3a";
+    if (ratio > 0.33) return "#ff8a3d";
+    return "#e0a640";
+  }
+
+  // Agrupar en semanas (columnas) para el layout tipo GitHub
+  const semanas = [];
+  for (let i = 0; i < dias.length; i += 7) {
+    semanas.push(dias.slice(i, i + 7));
+  }
+
+  const celda = grande ? 13 : 11;
+  const gap = 3;
+
+  return (
+    <div
+      style={{
+        background: "#221510",
+        border: "1px solid #4a3020",
+        borderRadius: 12,
+        padding: "16px 18px",
+        overflowX: "auto",
+      }}
+    >
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#e8dcc8", marginBottom: 10 }}>
+        🔥 Actividad ({DIAS} días)
+      </div>
+      <div style={{ display: "flex", gap: gap }}>
+        {semanas.map((semana, si) => (
+          <div key={si} style={{ display: "flex", flexDirection: "column", gap: gap }}>
+            {semana.map((d) => (
+              <div
+                key={d.key}
+                title={`${d.fecha.toLocaleDateString("es-PE")} — ${d.count} evento${d.count !== 1 ? "s" : ""}`}
+                style={{
+                  width: celda,
+                  height: celda,
+                  borderRadius: 3,
+                  background: intensidad(d.count),
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 10, color: "#8a7a68" }}>
+        Menos
+        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#3a2418" }} />
+        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#e0a640" }} />
+        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#ff8a3d" }} />
+        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#ff5e3a" }} />
+        Más
+      </div>
     </div>
   );
 }
