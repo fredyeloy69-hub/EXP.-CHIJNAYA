@@ -11,6 +11,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { generarReportePorArea } from "@/lib/exportarReporte";
+import { generarReporteExcelPorArea } from "@/lib/exportarExcel";
 
 const COLLAPSE_STORAGE_KEY = "chijnaya_grupos_colapsados";
 
@@ -97,6 +98,7 @@ export default function Dashboard() {
   const [colapsados, setColapsados] = useState({}); // { [groupKey]: true } => colapsado
   const [colapsoListo, setColapsoListo] = useState(false); // evita pisar localStorage antes de leerlo
   const [exportandoArea, setExportandoArea] = useState(null);
+  const [exportandoExcelArea, setExportandoExcelArea] = useState(null);
 
   // Cargar estado de colapso guardado (una sola vez, al montar)
   useEffect(() => {
@@ -129,6 +131,15 @@ export default function Dashboard() {
       generarReportePorArea(areaNombre, carpetasDelArea);
     } finally {
       setExportandoArea(null);
+    }
+  }
+
+  function handleExportarExcelArea(areaNombre, carpetasDelArea) {
+    setExportandoExcelArea(areaNombre);
+    try {
+      generarReporteExcelPorArea(areaNombre, carpetasDelArea);
+    } finally {
+      setExportandoExcelArea(null);
     }
   }
 
@@ -356,27 +367,46 @@ export default function Dashboard() {
             }}
           />
 
-          {/* Exportar reporte institucional — un PDF por cada área */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+          {/* Exportar reporte institucional — un PDF y un Excel por cada área */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
             {areas.map((a) => (
-              <button
-                key={a}
-                onClick={() => handleExportarArea(a, carpetasPorArea[a] || [])}
-                disabled={exportandoArea === a}
-                style={{
-                  fontSize: 11,
-                  padding: "6px 12px",
-                  borderRadius: 20,
-                  border: "1px solid #2a3350",
-                  background: "#151b2b",
-                  color: exportandoArea === a ? "#4a5164" : "#c7cede",
-                  fontWeight: 600,
-                  cursor: exportandoArea === a ? "not-allowed" : "pointer",
-                }}
-                title={`Exportar reporte PDF de ${a}`}
-              >
-                📄 {exportandoArea === a ? "Generando..." : `Exportar ${a}`}
-              </button>
+              <div key={a} style={{ display: "flex", gap: 4 }}>
+                <button
+                  onClick={() => handleExportarArea(a, carpetasPorArea[a] || [])}
+                  disabled={exportandoArea === a}
+                  style={{
+                    fontSize: 11,
+                    padding: "6px 12px",
+                    borderRadius: "20px 0 0 20px",
+                    border: "1px solid #2a3350",
+                    background: "#151b2b",
+                    color: exportandoArea === a ? "#4a5164" : "#c7cede",
+                    fontWeight: 600,
+                    cursor: exportandoArea === a ? "not-allowed" : "pointer",
+                  }}
+                  title={`Exportar reporte PDF de ${a}`}
+                >
+                  📄 {exportandoArea === a ? "Generando..." : `PDF ${a}`}
+                </button>
+                <button
+                  onClick={() => handleExportarExcelArea(a, carpetasPorArea[a] || [])}
+                  disabled={exportandoExcelArea === a}
+                  style={{
+                    fontSize: 11,
+                    padding: "6px 12px",
+                    borderRadius: "0 20px 20px 0",
+                    border: "1px solid #2a3350",
+                    borderLeft: "none",
+                    background: "#151b2b",
+                    color: exportandoExcelArea === a ? "#4a5164" : "#7fd88f",
+                    fontWeight: 600,
+                    cursor: exportandoExcelArea === a ? "not-allowed" : "pointer",
+                  }}
+                  title={`Exportar reporte Excel (editable) de ${a}`}
+                >
+                  📊 {exportandoExcelArea === a ? "Generando..." : "Excel"}
+                </button>
+              </div>
             ))}
           </div>
 
