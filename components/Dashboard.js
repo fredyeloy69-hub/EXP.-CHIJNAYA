@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { generarReportePorArea } from "@/lib/exportarReporte";
 import { generarReporteExcelPorArea } from "@/lib/exportarExcel";
+import { LOGO_PUNO_BASE64 } from "@/lib/logoPuno";
 
 const COLLAPSE_STORAGE_KEY = "chijnaya_grupos_colapsados";
 
@@ -272,18 +273,24 @@ export default function Dashboard() {
   return (
     <div className="chijnaya-fondo-animado" style={{ minHeight: "100vh", width: "100%" }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        .chijnaya-fondo-animado, .chijnaya-fondo-animado * {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
         .chijnaya-fondo-animado {
           background: linear-gradient(
             -45deg,
-            #031012,
+            #010708,
             #0a2c33,
-            #0d3e46,
-            #124f57,
+            #145e6a,
+            #1c7d87,
+            #145e6a,
             #0a2c33,
-            #031012
+            #010708
           );
-          background-size: 400% 400%;
-          animation: chijnayaGradiente 14s ease infinite;
+          background-size: 500% 500%;
+          animation: chijnayaGradiente 8s ease infinite;
         }
         @keyframes chijnayaGradiente {
           0%   { background-position: 0% 50%; }
@@ -293,8 +300,26 @@ export default function Dashboard() {
         @media (prefers-reduced-motion: reduce) {
           .chijnaya-fondo-animado { animation: none; }
         }
+        .chijnaya-header-sticky {
+          position: sticky;
+          top: 0;
+          z-index: 40;
+          backdrop-filter: blur(10px);
+          background: rgba(3,16,18,.88);
+          border-bottom: 1px solid #1f4a4a;
+        }
+        .chijnaya-fade-in {
+          animation: chijnayaFadeIn .28s ease both;
+        }
+        @keyframes chijnayaFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .chijnaya-fade-in { animation: none; }
+        }
         .chijnaya-barra-avance {
-          animation: chijnayaRayas 1.1s linear infinite;
+          animation: chijnayaRayas 0.8s linear infinite;
         }
         @keyframes chijnayaRayas {
           from { background-position: 0 0, 0 0; }
@@ -304,18 +329,37 @@ export default function Dashboard() {
           .chijnaya-barra-avance { animation: none; }
         }
       `}</style>
-      <div style={{ maxWidth: modoPresentacion ? "100%" : 1500, margin: "0 auto", padding: modoPresentacion ? "36px 48px" : "32px 28px", color: "#eef7f5" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: modoPresentacion ? 36 : 24, marginBottom: 4 }}>Expediente Técnico — C.S. Chijnaya</h1>
-          <p style={{ color: "#b7c9c6", marginTop: 0, marginBottom: 4, fontSize: modoPresentacion ? 16 : 14 }}>
-            Estado en tiempo real de la carga de documentación
-          </p>
-          {resumen?.ultimaSync?.toDate && (
-            <p style={{ color: "#8fa8a8", fontSize: 11, marginTop: 0 }}>
-              Última sincronización: {tiempoRelativo(resumen.ultimaSync.toDate())}
+      <div className="chijnaya-header-sticky">
+        <div
+          style={{
+            maxWidth: modoPresentacion ? "100%" : 1500,
+            margin: "0 auto",
+            padding: modoPresentacion ? "18px 48px" : "16px 28px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+            gap: 12,
+            color: "#eef7f5",
+          }}
+        >
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <img
+            src={LOGO_PUNO_BASE64}
+            alt="Escudo Gobierno Regional de Puno"
+            style={{ width: modoPresentacion ? 52 : 40, height: modoPresentacion ? 58 : 45, flexShrink: 0 }}
+          />
+          <div>
+            <h1 style={{ fontSize: modoPresentacion ? 36 : 24, marginBottom: 4, fontWeight: 800, letterSpacing: -0.3 }}>Expediente Técnico — C.S. Chijnaya</h1>
+            <p style={{ color: "#b7c9c6", marginTop: 0, marginBottom: 4, fontSize: modoPresentacion ? 16 : 14 }}>
+              Estado en tiempo real de la carga de documentación
             </p>
-          )}
+            {resumen?.ultimaSync?.toDate && (
+              <p style={{ color: "#8fa8a8", fontSize: 11, marginTop: 0 }}>
+                Última sincronización: {tiempoRelativo(resumen.ultimaSync.toDate())}
+              </p>
+            )}
+          </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <button
@@ -365,10 +409,22 @@ export default function Dashboard() {
             </p>
           )}
         </div>
+        </div>
       </div>
 
+      <div style={{ maxWidth: modoPresentacion ? "100%" : 1500, margin: "0 auto", padding: modoPresentacion ? "24px 48px 36px" : "24px 28px 32px", color: "#eef7f5" }}>
+
       {/* Barra de progreso — estilo "barra de energía", debe resaltar sobre el resto */}
-      <div style={{ marginBottom: 32 }}>
+      <div
+        style={{
+          marginBottom: 32,
+          background: "rgba(8,28,31,.75)",
+          backdropFilter: "blur(6px)",
+          borderRadius: 12,
+          padding: "16px 18px",
+          border: "1px solid #1f4a4a",
+        }}
+      >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: "#dceeec", letterSpacing: 0.5 }}>
             <span style={{ color: "#17a398" }}>»» </span>AVANCE GENERAL
@@ -422,6 +478,7 @@ export default function Dashboard() {
 
       {modoPresentacion && (
         <div
+          className="chijnaya-fade-in"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
@@ -582,6 +639,8 @@ export default function Dashboard() {
           </div>
 
           <div
+            key={`${filtroEstado}-${filtroArea}-${busqueda}`}
+            className="chijnaya-fade-in"
             style={{
               background: "rgba(21,27,43,.5)",
               backdropFilter: "blur(6px)",
@@ -591,11 +650,32 @@ export default function Dashboard() {
             }}
           >
             {visibles.length === 0 && (
-              <p style={{ padding: 16, color: "#b7c9c6" }}>
-                {carpetas.length === 0
-                  ? "Sin datos todavía — esperando primera sincronización."
-                  : "No hay carpetas que coincidan con el filtro."}
-              </p>
+              <div
+                className="chijnaya-fade-in"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  textAlign: "center",
+                  padding: "48px 24px",
+                  gap: 8,
+                }}
+              >
+                <div style={{ fontSize: 34, opacity: 0.7 }}>
+                  {carpetas.length === 0 ? "⏳" : "🔍"}
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#dceeec" }}>
+                  {carpetas.length === 0
+                    ? "Sin datos todavía"
+                    : "No hay carpetas que coincidan"}
+                </div>
+                <div style={{ fontSize: 12.5, color: "#8fa8a8", maxWidth: 340 }}>
+                  {carpetas.length === 0
+                    ? "Esperando la primera sincronización con Google Drive."
+                    : "Prueba otro término de búsqueda, o cambia el filtro de estado/área arriba."}
+                </div>
+              </div>
             )}
             {(() => {
               // Agrupar por "especialidad": segundo nivel de la ruta, dentro de cada area.
@@ -829,6 +909,26 @@ export default function Dashboard() {
         </div>
       </div>
       )}
+
+      <div
+        style={{
+          marginTop: 40,
+          padding: "14px 18px",
+          background: "rgba(8,28,31,.75)",
+          backdropFilter: "blur(6px)",
+          border: "1px solid #1f4a4a",
+          borderRadius: 12,
+          textAlign: "center",
+          fontSize: 11,
+          color: "#8fa8a8",
+          lineHeight: 1.6,
+        }}
+      >
+        Gobierno Regional de Puno — Gerencia Regional de Infraestructura · Sub Gerencia de Estudios Definitivos
+        <br />
+        Expediente Técnico "C.S. Chijnaya"
+        {resumen?.ultimaSync?.toDate && ` · Última sincronización: ${tiempoRelativo(resumen.ultimaSync.toDate())}`}
+      </div>
       </div>
     </div>
   );
@@ -930,7 +1030,7 @@ function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
             type="rotate"
             from={`0 ${size / 2} ${size / 2}`}
             to={`360 ${size / 2} ${size / 2}`}
-            dur="1.8s"
+            dur="1.3s"
             repeatCount="indefinite"
           />
         </circle>
@@ -1014,7 +1114,7 @@ function AreaProgressPanel({ area, stats, color }) {
             type="rotate"
             from={`0 ${size / 2} ${size / 2}`}
             to={`360 ${size / 2} ${size / 2}`}
-            dur="1.8s"
+            dur="1.3s"
             repeatCount="indefinite"
           />
         </circle>
