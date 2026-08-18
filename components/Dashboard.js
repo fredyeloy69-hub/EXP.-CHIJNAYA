@@ -361,24 +361,28 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <button
             onClick={() => setModoPresentacion((v) => !v)}
             style={{
-              fontSize: 11,
+              fontSize: 14,
               fontWeight: 700,
-              padding: "6px 14px",
-              borderRadius: 20,
-              border: "1px solid #2b5c5c",
+              padding: "14px 20px",
+              borderRadius: 14,
+              border: modoPresentacion ? "2px solid #17a398" : "1.5px solid #2b5c5c",
               background: modoPresentacion ? "#17a39822" : "#0e2529",
-              color: modoPresentacion ? "#17a398" : "#b7c9c6",
+              color: modoPresentacion ? "#17a398" : "#dceeec",
               cursor: "pointer",
-              marginBottom: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              whiteSpace: "nowrap",
             }}
           >
-            {modoPresentacion ? "✕ Salir de presentación" : "🖥 Modo presentación"}
+            <span style={{ fontSize: 18 }}>🖥</span>
+            {modoPresentacion ? "Salir de presentación" : "Modo presentación"}
           </button>
-          <br />
+          <div style={{ textAlign: "right" }}>
           <button
             onClick={handleSync}
             disabled={sincronizando}
@@ -408,6 +412,7 @@ export default function Dashboard() {
               {mensajeSync.texto}
             </p>
           )}
+          </div>
         </div>
         </div>
       </div>
@@ -1330,8 +1335,8 @@ function ActividadHeatmap({ eventos, grande }) {
     semanas.push(dias.slice(i, i + 7));
   }
 
-  const celda = grande ? 30 : 11;
-  const gap = grande ? 7 : 3;
+  const celda = grande ? 30 : 17;
+  const gap = grande ? 7 : 4;
 
   // Resumen de eventos por tipo dentro de la ventana visible, para llenar el
   // espacio sobrante junto al calendario con información real (no solo relleno visual)
@@ -1375,7 +1380,7 @@ function ActividadHeatmap({ eventos, grande }) {
           ))}
         </div>
 
-        {grande && tiposOrdenados.length > 0 && (
+        {tiposOrdenados.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 220 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
               Resumen del período
