@@ -1319,9 +1319,9 @@ function ActividadHeatmap({ eventos, grande }) {
   function intensidad(count) {
     if (count === 0) return "#1f4a4a";
     const ratio = count / maxCount;
-    if (ratio > 0.66) return "#0e7c72";
+    if (ratio > 0.66) return "#2dd4bf";
     if (ratio > 0.33) return "#17a398";
-    return "#17a398";
+    return "#0e7c72";
   }
 
   // Agrupar en semanas (columnas) para el layout tipo GitHub
@@ -1330,8 +1330,8 @@ function ActividadHeatmap({ eventos, grande }) {
     semanas.push(dias.slice(i, i + 7));
   }
 
-  const celda = grande ? 22 : 11;
-  const gap = grande ? 5 : 3;
+  const celda = grande ? 30 : 11;
+  const gap = grande ? 7 : 3;
 
   // Resumen de eventos por tipo dentro de la ventana visible, para llenar el
   // espacio sobrante junto al calendario con información real (no solo relleno visual)
@@ -1411,13 +1411,26 @@ function ActividadHeatmap({ eventos, grande }) {
           </div>
         )}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 10, color: "#8fa8a8" }}>
-        Menos
-        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#1f4a4a" }} />
-        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#17a398" }} />
-        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#17a398" }} />
-        <div style={{ width: 10, height: 10, borderRadius: 2, background: "#0e7c72" }} />
-        Más
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: grande ? 10 : 6,
+          marginTop: grande ? 18 : 10,
+          fontSize: grande ? 13 : 10,
+          color: "#8fa8a8",
+          flexWrap: "wrap",
+        }}
+      >
+        <span>Sin actividad</span>
+        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#1f4a4a" }} />
+        <span style={{ marginLeft: 8 }}>Baja</span>
+        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#0e7c72" }} />
+        <span style={{ marginLeft: 8 }}>Media</span>
+        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#17a398" }} />
+        <span style={{ marginLeft: 8 }}>Alta</span>
+        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#2dd4bf" }} />
+        <span style={{ marginLeft: 10, color: "#5c7a78" }}>— cada cuadro es un día, más brillante = más eventos ese día</span>
       </div>
     </div>
   );
