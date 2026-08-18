@@ -1330,8 +1330,17 @@ function ActividadHeatmap({ eventos, grande }) {
     semanas.push(dias.slice(i, i + 7));
   }
 
-  const celda = grande ? 13 : 11;
-  const gap = 3;
+  const celda = grande ? 22 : 11;
+  const gap = grande ? 5 : 3;
+
+  // Resumen de eventos por tipo dentro de la ventana visible, para llenar el
+  // espacio sobrante junto al calendario con información real (no solo relleno visual)
+  const conteoPorTipo = {};
+  for (const e of eventos) {
+    conteoPorTipo[e.tipo] = (conteoPorTipo[e.tipo] || 0) + 1;
+  }
+  const tiposOrdenados = Object.keys(conteoPorTipo).sort((a, b) => conteoPorTipo[b] - conteoPorTipo[a]);
+  const diaMasActivo = dias.reduce((max, d) => (d.count > (max?.count || 0) ? d : max), null);
 
   return (
     <div
@@ -1339,30 +1348,68 @@ function ActividadHeatmap({ eventos, grande }) {
         background: "#0e2529",
         border: "1px solid #2b5c5c",
         borderRadius: 12,
-        padding: "16px 18px",
+        padding: grande ? "22px 26px" : "16px 18px",
         overflowX: "auto",
       }}
     >
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#dceeec", marginBottom: 10 }}>
+      <div style={{ fontSize: grande ? 17 : 14, fontWeight: 700, color: "#dceeec", marginBottom: grande ? 18 : 10 }}>
         🔥 Actividad ({DIAS} días)
       </div>
-      <div style={{ display: "flex", gap: gap }}>
-        {semanas.map((semana, si) => (
-          <div key={si} style={{ display: "flex", flexDirection: "column", gap: gap }}>
-            {semana.map((d) => (
-              <div
-                key={d.key}
-                title={`${d.fecha.toLocaleDateString("es-PE")} — ${d.count} evento${d.count !== 1 ? "s" : ""}`}
-                style={{
-                  width: celda,
-                  height: celda,
-                  borderRadius: 3,
-                  background: intensidad(d.count),
-                }}
-              />
+      <div style={{ display: "flex", gap: grande ? 40 : 16, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: gap }}>
+          {semanas.map((semana, si) => (
+            <div key={si} style={{ display: "flex", flexDirection: "column", gap: gap }}>
+              {semana.map((d) => (
+                <div
+                  key={d.key}
+                  title={`${d.fecha.toLocaleDateString("es-PE")} — ${d.count} evento${d.count !== 1 ? "s" : ""}`}
+                  style={{
+                    width: celda,
+                    height: celda,
+                    borderRadius: grande ? 5 : 3,
+                    background: intensidad(d.count),
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {grande && tiposOrdenados.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 220 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
+              Resumen del período
+            </div>
+            {tiposOrdenados.map((tipo) => (
+              <div key={tipo} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15 }}>
+                <span
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    background: (EVENTO_COLOR[tipo] || "#9db3b0") + "22",
+                    border: `1.5px solid ${EVENTO_COLOR[tipo] || "#9db3b0"}`,
+                    color: EVENTO_COLOR[tipo] || "#9db3b0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 13,
+                    flexShrink: 0,
+                  }}
+                >
+                  {EVENTO_ICONO[tipo] || "•"}
+                </span>
+                <strong>{conteoPorTipo[tipo]}</strong>
+                <span style={{ color: "#b7c9c6" }}>{EVENTO_LABEL[tipo] || tipo}</span>
+              </div>
             ))}
+            {diaMasActivo && diaMasActivo.count > 0 && (
+              <div style={{ fontSize: 12.5, color: "#8fa8a8", marginTop: 6, paddingTop: 10, borderTop: "1px solid #1f4a4a" }}>
+                Día más activo: <strong style={{ color: "#dceeec" }}>{diaMasActivo.fecha.toLocaleDateString("es-PE")}</strong> ({diaMasActivo.count} eventos)
+              </div>
+            )}
           </div>
-        ))}
+        )}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, fontSize: 10, color: "#8fa8a8" }}>
         Menos
