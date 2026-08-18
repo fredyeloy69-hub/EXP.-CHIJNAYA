@@ -102,7 +102,7 @@ export default function Dashboard() {
   const [exportandoExcelArea, setExportandoExcelArea] = useState(null);
   const [modoPresentacion, setModoPresentacion] = useState(false);
   const [historial, setHistorial] = useState([]);
-  const [eventosHeatmap, setEventosHeatmap] = useState([]);
+  const [actividadPorDia, setActividadPorDia] = useState({});
 
   // Cargar estado de colapso guardado (una sola vez, al montar)
   useEffect(() => {
@@ -183,14 +183,11 @@ export default function Dashboard() {
       setEventos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
-    // Ventana más amplia de eventos solo para el heatmap de actividad (no se muestra en la lista)
-    const eventosHeatmapQuery = query(
-      collection(db, "eventos"),
-      orderBy("timestamp", "desc"),
-      limit(600)
-    );
-    const unsubEventosHeatmap = onSnapshot(eventosHeatmapQuery, (snap) => {
-      setEventosHeatmap(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    // Actividad para el mapa de calor: se lee UN SOLO documento agregado
+    // (contador por día, guardado por syncEngine) en vez de cientos de eventos
+    // crudos — esto es lo que evita agotar la cuota gratuita de lecturas de Firestore.
+    const unsubActividadPorDia = onSnapshot(doc(db, "_meta", "actividadPorDia"), (snap) => {
+      setActividadPorDia(snap.exists() ? snap.data() : {});
     });
 
     // Historial diario (guardado por syncEngine) para el gráfico de tendencia
@@ -207,7 +204,7 @@ export default function Dashboard() {
       unsubResumen();
       unsubCarpetas();
       unsubEventos();
-      unsubEventosHeatmap();
+      unsubActividadPorDia();
       unsubHistorial();
     };
   }, []);
@@ -473,11 +470,11 @@ export default function Dashboard() {
       {historial.length >= 2 ? (
         <div style={{ display: "grid", gridTemplateColumns: modoPresentacion ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
           <TendenciaChart historial={historial} grande={modoPresentacion} />
-          <ActividadHeatmap eventos={eventosHeatmap} grande={modoPresentacion} />
+          <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} />
         </div>
       ) : (
         <div style={{ marginBottom: 32 }}>
-          <ActividadHeatmap eventos={eventosHeatmap} grande={modoPresentacion} />
+          <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} />
         </div>
       )}
 
@@ -1297,19 +1294,23 @@ function TendenciaChart({ historial, grande }) {
 
 // Mapa de calor tipo GitHub — cuadraditos por día mostrando cuánta actividad hubo
 // (subidas, reemplazos, borrados, etc.), usando la colección "eventos".
-function ActividadHeatmap({ eventos, grande }) {
+function ActividadHeatmap({ actividadPorDia, grande }) {
   const DIAS = grande ? 119 : 84; // ~17 o ~12 semanas
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
-  // Cuenta eventos por día (clave YYYY-MM-DD)
+  // conteoPorDia y conteoPorTipo salen directo del documento agregado
+  // (ej. { "2026-08-13": { subido: 400, borrado: 100 }, ... })
   const conteoPorDia = {};
-  for (const e of eventos) {
-    const fecha = e.timestamp?.toDate ? e.timestamp.toDate() : null;
-    if (!fecha) continue;
-    const key = fecha.toISOString().slice(0, 10);
-    conteoPorDia[key] = (conteoPorDia[key] || 0) + 1;
+  const conteoPorTipoTotal = {};
+  for (const [fechaKey, tipos] of Object.entries(actividadPorDia || {})) {
+    let totalDia = 0;
+    for (const [tipo, cantidad] of Object.entries(tipos || {})) {
+      totalDia += cantidad;
+      conteoPorTipoTotal[tipo] = (conteoPorTipoTotal[tipo] || 0) + cantidad;
+    }
+    conteoPorDia[fechaKey] = totalDia;
   }
 
   const dias = [];
@@ -1340,10 +1341,7 @@ function ActividadHeatmap({ eventos, grande }) {
 
   // Resumen de eventos por tipo dentro de la ventana visible, para llenar el
   // espacio sobrante junto al calendario con información real (no solo relleno visual)
-  const conteoPorTipo = {};
-  for (const e of eventos) {
-    conteoPorTipo[e.tipo] = (conteoPorTipo[e.tipo] || 0) + 1;
-  }
+  const conteoPorTipo = conteoPorTipoTotal;
   const tiposOrdenados = Object.keys(conteoPorTipo).sort((a, b) => conteoPorTipo[b] - conteoPorTipo[a]);
   const diaMasActivo = dias.reduce((max, d) => (d.count > (max?.count || 0) ? d : max), null);
 
