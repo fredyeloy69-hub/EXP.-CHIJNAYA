@@ -257,11 +257,14 @@ export default function Dashboard() {
   const areaStats = {};
   for (const c of carpetas) {
     const a = c.area || "Sin área";
-    if (!areaStats[a]) areaStats[a] = { total: 0, completas: 0, incompletas: 0, vacias: 0 };
+    if (!areaStats[a])
+      areaStats[a] = { total: 0, completas: 0, incompletas: 0, vacias: 0, archivosNecesarios: 0, archivosCompletados: 0 };
     areaStats[a].total++;
     if (c.estado === "completa") areaStats[a].completas++;
     if (c.estado === "incompleta") areaStats[a].incompletas++;
     if (c.estado === "vacia") areaStats[a].vacias++;
+    areaStats[a].archivosNecesarios += c.archivosNecesarios || 0;
+    areaStats[a].archivosCompletados += c.archivosCompletados || 0;
   }
 
   let listaBase = carpetas;
@@ -447,7 +450,7 @@ export default function Dashboard() {
       {/* Barra de progreso — estilo "barra de energía", debe resaltar sobre el resto */}
       <div
         style={{
-          marginBottom: 32,
+          marginBottom: 20,
           background: "rgba(8,28,31,.75)",
           backdropFilter: "blur(6px)",
           borderRadius: 12,
@@ -455,11 +458,14 @@ export default function Dashboard() {
           border: "1px solid #1f4a4a",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
           <span style={{ fontSize: 16, fontWeight: 700, color: "#dceeec", letterSpacing: 0.5 }}>
-            <span style={{ color: "#17a398" }}>»» </span>AVANCE GENERAL
+            <span style={{ color: "#17a398" }}>»» </span>AVANCE POR CARPETAS
           </span>
           <strong style={{ fontSize: 30, textShadow: "0 0 18px rgba(23,163,152,.6)" }}>{pct}%</strong>
+        </div>
+        <div style={{ fontSize: 11, color: "#8fa8a8", marginBottom: 8 }}>
+          {resumen?.completas ?? "–"} de {resumen?.totalFinales ?? "–"} carpetas marcadas como completas
         </div>
         <div
           style={{
@@ -481,6 +487,52 @@ export default function Dashboard() {
               transition: "width .4s ease",
               boxShadow: "0 0 22px rgba(14,124,114,.65)",
               borderRadius: 17,
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Segunda barra: avance REAL a nivel de archivo, se mueve gradualmente
+          archivo por archivo en vez de saltar de golpe carpeta por carpeta */}
+      <div
+        style={{
+          marginBottom: 32,
+          background: "rgba(8,28,31,.75)",
+          backdropFilter: "blur(6px)",
+          borderRadius: 12,
+          padding: "16px 18px",
+          border: "1px solid #1f4a4a",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: "#dceeec", letterSpacing: 0.5 }}>
+            <span style={{ color: "#2dd4bf" }}>»» </span>AVANCE POR ARCHIVOS <span style={{ fontSize: 11, color: "#8fa8a8", fontWeight: 400 }}>(más preciso)</span>
+          </span>
+          <strong style={{ fontSize: 30, color: "#2dd4bf", textShadow: "0 0 18px rgba(45,212,191,.6)" }}>
+            {resumen?.pctArchivos ?? "–"}%
+          </strong>
+        </div>
+        <div style={{ fontSize: 11, color: "#8fa8a8", marginBottom: 8 }}>
+          {resumen?.totalArchivosCompletados ?? "–"} de {resumen?.totalArchivosNecesarios ?? "–"} archivos que hacen falta, ya están subidos
+          (cuenta cada PDF/editable, no solo si la carpeta está 100% o no)
+        </div>
+        <div
+          style={{
+            height: 22,
+            background: "#0a1e20",
+            borderRadius: 11,
+            overflow: "hidden",
+            boxShadow: "inset 0 2px 6px rgba(0,0,0,.5), 0 0 0 1px #1f4a4a",
+          }}
+        >
+          <div
+            style={{
+              width: `${resumen?.pctArchivos ?? 0}%`,
+              height: "100%",
+              background: "linear-gradient(90deg,#2dd4bf,#0d9488)",
+              transition: "width .4s ease",
+              boxShadow: "0 0 16px rgba(45,212,191,.5)",
+              borderRadius: 11,
             }}
           />
         </div>
@@ -1112,6 +1164,8 @@ function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
 
 function AreaProgressPanel({ area, stats, color }) {
   const pct = stats.total > 0 ? Math.round((stats.completas / stats.total) * 100) : 0;
+  const pctArchivos =
+    stats.archivosNecesarios > 0 ? Math.round((stats.archivosCompletados / stats.archivosNecesarios) * 100) : 0;
   const size = 96;
   const stroke = 9;
   const radius = (size - stroke) / 2;
@@ -1198,6 +1252,14 @@ function AreaProgressPanel({ area, stats, color }) {
             {"  ·  "}
             <span style={{ color: "#e74c3c", fontWeight: 700 }}>{stats.vacias}</span> vacías
           </div>
+          {stats.archivosNecesarios > 0 && (
+            <div style={{ marginTop: 4, paddingTop: 4, borderTop: "1px solid #1f4a4a" }}>
+              <span style={{ color: "#2dd4bf", fontWeight: 700 }}>{pctArchivos}%</span>{" "}
+              <span style={{ color: "#8fa8a8" }}>
+                por archivos ({stats.archivosCompletados} de {stats.archivosNecesarios})
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
