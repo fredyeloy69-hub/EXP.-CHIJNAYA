@@ -54,6 +54,8 @@ const EVENTO_LABEL = {
   carpeta_creada: "creó la carpeta",
   carpeta_borrada: "borró la carpeta",
   carpeta_movida: "movió la carpeta",
+  carpeta_marcada_completa: "marcó como completa",
+  carpeta_desmarcada: "desmarcó",
 };
 
 const EVENTO_COLOR = {
@@ -63,6 +65,8 @@ const EVENTO_COLOR = {
   carpeta_creada: "#17a398",
   carpeta_borrada: "#e74c3c",
   carpeta_movida: "#2e86ab",
+  carpeta_marcada_completa: "#2dd4bf",
+  carpeta_desmarcada: "#f39c12",
 };
 
 const EVENTO_ICONO = {
@@ -72,6 +76,8 @@ const EVENTO_ICONO = {
   carpeta_creada: "+",
   carpeta_borrada: "✕",
   carpeta_movida: "⇄",
+  carpeta_marcada_completa: "✓",
+  carpeta_desmarcada: "↺",
 };
 
 function tiempoRelativo(date) {
@@ -148,7 +154,24 @@ export default function Dashboard() {
     }
   }
 
-  async function handleMarcarCompleta(folderId, forzada) {
+  function getNombreUsuario() {
+    try {
+      let nombre = localStorage.getItem("chijnaya_nombre_usuario");
+      if (!nombre) {
+        nombre = window.prompt("¿Cuál es tu nombre? (se va a mostrar cuando marques o desmarques carpetas, para que los demás evaluadores sepan quién lo hizo)", "");
+        if (nombre && nombre.trim()) {
+          localStorage.setItem("chijnaya_nombre_usuario", nombre.trim());
+          nombre = nombre.trim();
+        }
+      }
+      return nombre || "Evaluador anónimo";
+    } catch {
+      return "Evaluador anónimo";
+    }
+  }
+
+  async function handleMarcarCompleta(folderId, forzada, folderName, folderRuta) {
+    const usuario = getNombreUsuario();
     let motivo = "";
     if (forzada) {
       motivo = window.prompt(
@@ -156,13 +179,18 @@ export default function Dashboard() {
         ""
       );
       if (motivo === null) return; // canceló el prompt
+    } else {
+      const confirmar = window.confirm(
+        "¿Seguro que quieres desmarcar esta carpeta? Volverá a depender de los archivos que tenga en Drive."
+      );
+      if (!confirmar) return;
     }
     setMarcandoId(folderId);
     try {
       const res = await fetch("/api/marcar-completa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderId, forzada, motivo }),
+        body: JSON.stringify({ folderId, forzada, motivo, usuario, folderName, folderRuta }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -570,8 +598,11 @@ export default function Dashboard() {
           }}
         >
           {areas.map((a) => {
-            const stats = areaStats[a] || { total: 0, completas: 0 };
-            const pctArea = stats.total > 0 ? Math.round((stats.completas / stats.total) * 100) : 0;
+            const stats = areaStats[a] || { total: 0, completas: 0, archivosNecesarios: 0, archivosCompletados: 0 };
+            const pctArea =
+              stats.archivosNecesarios > 0
+                ? Math.round((stats.archivosCompletados / stats.archivosNecesarios) * 100)
+                : 0;
             return (
               <AreaMiniCard
                 key={a}
@@ -672,7 +703,7 @@ export default function Dashboard() {
           >
             <AreaMiniCard
               area="Todas"
-              pct={pct}
+              pct={resumen?.pctArchivos ?? 0}
               total={resumen?.totalFinales ?? 0}
               color="#17a398"
               active={filtroArea === "Todas"}
@@ -681,7 +712,8 @@ export default function Dashboard() {
             {areas.map((a) => {
               const s = areaStats[a];
               if (!s) return null;
-              const areaPct = s.total > 0 ? Math.round((s.completas / s.total) * 100) : 0;
+              const areaPct =
+                s.archivosNecesarios > 0 ? Math.round((s.archivosCompletados / s.archivosNecesarios) * 100) : 0;
               return (
                 <AreaMiniCard
                   key={a}
@@ -866,12 +898,34 @@ export default function Dashboard() {
                               {c.estado}{c.forzada ? " · manual" : ""}
                             </span>
                           </div>
+                          {c.forzada && (
+                            <div
+                              style={{
+                                marginTop: 6,
+                                padding: "6px 10px",
+                                background: "#2dd4bf14",
+                                border: "1px solid #2dd4bf33",
+                                borderRadius: 8,
+                                fontSize: 11,
+                                color: "#9db3b0",
+                              }}
+                            >
+                              ✓ Marcada por <strong style={{ color: "#2dd4bf" }}>{c.marcadoPor || "alguien"}</strong>
+                              {c.marcadoEn && ` — ${tiempoRelativo(new Date(c.marcadoEn))}`}
+                              {c.motivo && (
+                                <>
+                                  <br />
+                                  <span style={{ fontStyle: "italic" }}>"{c.motivo}"</span>
+                                </>
+                              )}
+                            </div>
+                          )}
                           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginTop: 6 }}>
                             <span style={{ fontSize: 11, color: "#b7c9c6" }}>{detalle}</span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleMarcarCompleta(c.id, !c.forzada);
+                                handleMarcarCompleta(c.id, !c.forzada, c.nombre, c.ruta);
                               }}
                               disabled={marcandoId === c.id}
                               style={{
@@ -1170,7 +1224,7 @@ function AreaProgressPanel({ area, stats, color }) {
   const stroke = 9;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (pct / 100) * circumference;
+  const offset = circumference - (pctArchivos / 100) * circumference;
 
   return (
     <div
@@ -1236,7 +1290,7 @@ function AreaProgressPanel({ area, stats, color }) {
           fontWeight="700"
           fill="#eef7f5"
         >
-          {pct}%
+          {pctArchivos}%
         </text>
       </svg>
 
