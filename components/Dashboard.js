@@ -103,6 +103,7 @@ export default function Dashboard() {
   const [modoPresentacion, setModoPresentacion] = useState(false);
   const [historial, setHistorial] = useState([]);
   const [actividadPorDia, setActividadPorDia] = useState({});
+  const [marcandoId, setMarcandoId] = useState(null);
 
   // Cargar estado de colapso guardado (una sola vez, al montar)
   useEffect(() => {
@@ -144,6 +145,33 @@ export default function Dashboard() {
       generarReporteExcelPorArea(areaNombre, carpetasDelArea);
     } finally {
       setExportandoExcelArea(null);
+    }
+  }
+
+  async function handleMarcarCompleta(folderId, forzada) {
+    let motivo = "";
+    if (forzada) {
+      motivo = window.prompt(
+        "¿Por qué se marca como completa? (ej. 'Documento escaneado, no aplica editable')",
+        ""
+      );
+      if (motivo === null) return; // canceló el prompt
+    }
+    setMarcandoId(folderId);
+    try {
+      const res = await fetch("/api/marcar-completa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folderId, forzada, motivo }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(`No se pudo actualizar: ${data.error || res.statusText}`);
+      }
+    } catch (err) {
+      alert(`Error de conexión: ${err.message}`);
+    } finally {
+      setMarcandoId(null);
     }
   }
 
@@ -783,11 +811,36 @@ export default function Dashboard() {
                                 flexShrink: 0,
                               }}
                             >
-                              {c.estado}
+                              {c.estado}{c.forzada ? " · manual" : ""}
                             </span>
                           </div>
-                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginTop: 6 }}>
                             <span style={{ fontSize: 11, color: "#b7c9c6" }}>{detalle}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarcarCompleta(c.id, !c.forzada);
+                              }}
+                              disabled={marcandoId === c.id}
+                              style={{
+                                fontSize: 10,
+                                padding: "3px 9px",
+                                borderRadius: 20,
+                                border: c.forzada ? "1px solid #e74c3c66" : "1px solid #2ecc7166",
+                                background: "transparent",
+                                color: marcandoId === c.id ? "#5c7a78" : c.forzada ? "#e88f86" : "#7fe0a3",
+                                cursor: marcandoId === c.id ? "not-allowed" : "pointer",
+                                whiteSpace: "nowrap",
+                                flexShrink: 0,
+                              }}
+                              title={
+                                c.forzada
+                                  ? "Quitar la marca manual (vuelve a depender de los archivos)"
+                                  : "Marcar como completa manualmente (excepción, ej. documento escaneado sin editable)"
+                              }
+                            >
+                              {marcandoId === c.id ? "..." : c.forzada ? "✕ Desmarcar" : "✓ Marcar completa"}
+                            </button>
                           </div>
                         </div>
                       );
