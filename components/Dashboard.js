@@ -110,6 +110,15 @@ export default function Dashboard() {
   const [historial, setHistorial] = useState([]);
   const [actividadPorDia, setActividadPorDia] = useState({});
   const [marcandoId, setMarcandoId] = useState(null);
+  const [nombreUsuarioUI, setNombreUsuarioUI] = useState(null);
+
+  useEffect(() => {
+    try {
+      setNombreUsuarioUI(localStorage.getItem("chijnaya_nombre_usuario") || null);
+    } catch {
+      // localStorage no disponible
+    }
+  }, []);
 
   // Cargar estado de colapso guardado (una sola vez, al montar)
   useEffect(() => {
@@ -158,7 +167,10 @@ export default function Dashboard() {
     try {
       let nombre = localStorage.getItem("chijnaya_nombre_usuario");
       if (!nombre) {
-        nombre = window.prompt("¿Cuál es tu nombre? (se va a mostrar cuando marques o desmarques carpetas, para que los demás evaluadores sepan quién lo hizo)", "");
+        nombre = window.prompt(
+          "Escribe TU NOMBRE (no un comentario) — se va a mostrar cada vez que marques o desmarques una carpeta, para que los demás evaluadores sepan quién lo hizo:",
+          ""
+        );
         if (nombre && nombre.trim()) {
           localStorage.setItem("chijnaya_nombre_usuario", nombre.trim());
           nombre = nombre.trim();
@@ -167,6 +179,19 @@ export default function Dashboard() {
       return nombre || "Evaluador anónimo";
     } catch {
       return "Evaluador anónimo";
+    }
+  }
+
+  function handleCambiarNombre() {
+    try {
+      const actual = localStorage.getItem("chijnaya_nombre_usuario") || "";
+      const nuevo = window.prompt("Escribe TU NOMBRE (no un comentario):", actual);
+      if (nuevo && nuevo.trim()) {
+        localStorage.setItem("chijnaya_nombre_usuario", nuevo.trim());
+        setNombreUsuarioUI(nuevo.trim());
+      }
+    } catch {
+      // localStorage no disponible, no se puede guardar
     }
   }
 
@@ -418,6 +443,26 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <button
+            onClick={handleCambiarNombre}
+            title="Cambiar el nombre con el que apareces al marcar/desmarcar carpetas"
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "10px 14px",
+              borderRadius: 12,
+              border: "1.5px solid #2b5c5c",
+              background: "#0e2529",
+              color: "#9db3b0",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              whiteSpace: "nowrap",
+            }}
+          >
+            👤 {nombreUsuarioUI || "Sin nombre"} <span style={{ color: "#5c7a78" }}>· cambiar</span>
+          </button>
           <button
             onClick={() => setModoPresentacion((v) => !v)}
             style={{
