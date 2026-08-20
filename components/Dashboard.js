@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { db } from "@/lib/firebaseClient";
 import {
   collection,
@@ -13,6 +13,15 @@ import {
 import { generarReportePorArea } from "@/lib/exportarReporte";
 import { generarReporteExcelPorArea } from "@/lib/exportarExcel";
 import { LOGO_PUNO_BASE64 } from "@/lib/logoPuno";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
+
+const auth = getAuth(db.app); // misma app de Firebase que ya usa Firestore (db)
 
 const COLLAPSE_STORAGE_KEY = "chijnaya_grupos_colapsados";
 
@@ -110,14 +119,13 @@ export default function Dashboard() {
   const [historial, setHistorial] = useState([]);
   const [actividadPorDia, setActividadPorDia] = useState({});
   const [marcandoId, setMarcandoId] = useState(null);
-  const [nombreUsuarioUI, setNombreUsuarioUI] = useState(null);
+  const [usuarioGoogle, setUsuarioGoogle] = useState(null); // {email, displayName} o null si no inició sesión
 
   useEffect(() => {
-    try {
-      setNombreUsuarioUI(localStorage.getItem("chijnaya_nombre_usuario") || null);
-    } catch {
-      // localStorage no disponible
-    }
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setUsuarioGoogle(user ? { email: user.email, displayName: user.displayName } : null);
+    });
+    return () => unsub();
   }, []);
 
   // Cargar estado de colapso guardado (una sola vez, al montar)
@@ -163,44 +171,24 @@ export default function Dashboard() {
     }
   }
 
-  function getNombreUsuario() {
-    try {
-      let nombre = localStorage.getItem("chijnaya_nombre_usuario");
-      if (!nombre) {
-        nombre = window.prompt(
-          "Escribe TU NOMBRE (no un comentario) — se va a mostrar cada vez que marques o desmarques una carpeta, para que los demás evaluadores sepan quién lo hizo:",
-          ""
-        );
-        if (nombre && nombre.trim()) {
-          localStorage.setItem("chijnaya_nombre_usuario", nombre.trim());
-          nombre = nombre.trim();
-        }
-      }
-      return nombre || "Evaluador anónimo";
-    } catch {
-      return "Evaluador anónimo";
-    }
-  }
-
-  function handleCambiarNombre() {
-    try {
-      const actual = localStorage.getItem("chijnaya_nombre_usuario") || "";
-      const nuevo = window.prompt("Escribe TU NOMBRE (no un comentario):", actual);
-      if (nuevo && nuevo.trim()) {
-        localStorage.setItem("chijnaya_nombre_usuario", nuevo.trim());
-        setNombreUsuarioUI(nuevo.trim());
-      }
-    } catch {
-      // localStorage no disponible, no se puede guardar
-    }
-  }
-
   async function handleMarcarCompleta(folderId, forzada, folderName, folderRuta) {
-    const usuario = getNombreUsuario();
+    // Necesita sesión real de Google — así el nombre/correo que queda registrado
+    // es siempre el verdadero, no algo que alguien escribió a mano.
+    let user = auth.currentUser;
+    if (!user) {
+      try {
+        const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+        user = cred.user;
+      } catch (err) {
+        alert(`Necesitas iniciar sesión con Google para marcar/desmarcar carpetas. ${err.message || ""}`);
+        return;
+      }
+    }
+
     let motivo = "";
     if (forzada) {
       motivo = window.prompt(
-        "¿Por qué se marca como completa? (ej. 'Documento escaneado, no aplica editable')",
+        "¿Por qué se marca como completa? (ej. 'Documento escaneado, no aplica editable') — esto lo van a poder ver los demás evaluadores",
         ""
       );
       if (motivo === null) return; // canceló el prompt
@@ -210,12 +198,14 @@ export default function Dashboard() {
       );
       if (!confirmar) return;
     }
+
     setMarcandoId(folderId);
     try {
+      const idToken = await user.getIdToken();
       const res = await fetch("/api/marcar-completa", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folderId, forzada, motivo, usuario, folderName, folderRuta }),
+        body: JSON.stringify({ folderId, forzada, motivo, idToken, folderName, folderRuta }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -308,6 +298,9 @@ export default function Dashboard() {
 
   // Estadisticas por area: total, completas, incompletas, vacias — para el circulo de progreso
   const areaStats = {};
+  // Estadisticas por ESPECIALIDAD (segundo segmento de la ruta), juntando las 3 areas —
+  // para los circulos de "avance por especialidad" del modo presentacion.
+  const especialidadStats = {};
   for (const c of carpetas) {
     const a = c.area || "Sin área";
     if (!areaStats[a])
@@ -318,7 +311,19 @@ export default function Dashboard() {
     if (c.estado === "vacia") areaStats[a].vacias++;
     areaStats[a].archivosNecesarios += c.archivosNecesarios || 0;
     areaStats[a].archivosCompletados += c.archivosCompletados || 0;
+
+    const partesRuta = (c.ruta || c.nombre || "").split(" / ").filter(Boolean);
+    const especialidad = partesRuta.length > 1 ? partesRuta[1] : "(raíz)";
+    if (!especialidadStats[especialidad])
+      especialidadStats[especialidad] = { total: 0, completas: 0, archivosNecesarios: 0, archivosCompletados: 0 };
+    especialidadStats[especialidad].total++;
+    if (c.estado === "completa") especialidadStats[especialidad].completas++;
+    especialidadStats[especialidad].archivosNecesarios += c.archivosNecesarios || 0;
+    especialidadStats[especialidad].archivosCompletados += c.archivosCompletados || 0;
   }
+  const especialidadesOrdenadas = Object.keys(especialidadStats).sort((x, y) =>
+    x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" })
+  );
 
   let listaBase = carpetas;
   if (filtroEstado === "pendientes") {
@@ -409,6 +414,60 @@ export default function Dashboard() {
         @media (prefers-reduced-motion: reduce) {
           .chijnaya-barra-avance { animation: none; }
         }
+
+        /* Hover profesional en todos los botones — leve elevación + brillo */
+        .chijnaya-fondo-animado button:not(:disabled) {
+          transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+        }
+        .chijnaya-fondo-animado button:not(:disabled):hover {
+          transform: translateY(-1.5px) scale(1.015);
+          filter: brightness(1.12);
+        }
+        .chijnaya-fondo-animado button:not(:disabled):active {
+          transform: translateY(0) scale(0.98);
+          filter: brightness(0.96);
+        }
+
+        /* Tarjetas contadoras y paneles: entrada suave con leve "resorte" */
+        .chijnaya-tarjeta-viva {
+          animation: chijnayaTarjetaEntrada .5s cubic-bezier(.25,.9,.35,1.25) both;
+        }
+        @keyframes chijnayaTarjetaEntrada {
+          from { opacity: 0; transform: translateY(10px) scale(.96); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Celdas del calendario de actividad: aparecen en cascada, tipo ola */
+        .chijnaya-celda-heatmap {
+          animation: chijnayaCeldaEntrada .4s ease both;
+        }
+        @keyframes chijnayaCeldaEntrada {
+          from { opacity: 0; transform: scale(.4); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+        .chijnaya-celda-heatmap:hover {
+          transform: scale(1.35);
+          transition: transform .12s ease;
+          box-shadow: 0 0 8px rgba(45,212,191,.6);
+        }
+
+        /* Transición suave al entrar/salir del modo presentación */
+        .chijnaya-modo-transicion {
+          animation: chijnayaModoEntrada .35s cubic-bezier(.2,.85,.35,1.15) both;
+        }
+        @keyframes chijnayaModoEntrada {
+          from { opacity: 0; transform: scale(.985); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .chijnaya-tarjeta-viva, .chijnaya-celda-heatmap, .chijnaya-modo-transicion {
+            animation: none !important;
+          }
+          .chijnaya-fondo-animado button:not(:disabled):hover {
+            transform: none;
+          }
+        }
       `}</style>
       <div className="chijnaya-header-sticky">
         <div
@@ -443,26 +502,6 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <button
-            onClick={handleCambiarNombre}
-            title="Cambiar el nombre con el que apareces al marcar/desmarcar carpetas"
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "10px 14px",
-              borderRadius: 12,
-              border: "1.5px solid #2b5c5c",
-              background: "#0e2529",
-              color: "#9db3b0",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              whiteSpace: "nowrap",
-            }}
-          >
-            👤 {nombreUsuarioUI || "Sin nombre"} <span style={{ color: "#5c7a78" }}>· cambiar</span>
-          </button>
           <button
             onClick={() => setModoPresentacion((v) => !v)}
             style={{
@@ -633,7 +672,7 @@ export default function Dashboard() {
 
       {modoPresentacion && (
         <div
-          className="chijnaya-fade-in"
+          className="chijnaya-fade-in chijnaya-modo-transicion"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
@@ -664,8 +703,30 @@ export default function Dashboard() {
         </div>
       )}
 
+      {modoPresentacion && especialidadesOrdenadas.length > 0 && (
+        <div className="chijnaya-fade-in chijnaya-modo-transicion" style={{ marginTop: 36 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#dceeec", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#2dd4bf" }}>»» </span>AVANCE POR ESPECIALIDAD
+            <span style={{ fontSize: 12, fontWeight: 400, color: "#8fa8a8" }}>({especialidadesOrdenadas.length})</span>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 18,
+            }}
+          >
+            {especialidadesOrdenadas.map((esp, i) => {
+              const s = especialidadStats[esp];
+              const pctEsp = s.archivosNecesarios > 0 ? Math.round((s.archivosCompletados / s.archivosNecesarios) * 100) : 0;
+              return <EspecialidadMiniCard key={esp} nombre={esp} pct={pctEsp} total={s.total} delay={i * 40} />;
+            })}
+          </div>
+        </div>
+      )}
+
       {!modoPresentacion && (
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 24 }}>
+      <div className="chijnaya-modo-transicion" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 24 }}>
         {/* Carpetas pendientes */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
@@ -1182,6 +1243,60 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
   );
 }
 
+// Círculo chico para el avance por especialidad — deliberadamente más discreto
+// que AreaMiniCard (más chico, sin borde grueso ni glow) para no competir
+// visualmente con los círculos de área ya existentes.
+function EspecialidadMiniCard({ nombre, pct, total, delay }) {
+  const size = 90;
+  const stroke = 7;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+  const color = pct >= 100 ? "#2ecc71" : pct >= 50 ? "#2dd4bf" : "#f39c12";
+
+  return (
+    <div
+      className="chijnaya-tarjeta-viva"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 8,
+        padding: "12px 8px",
+        borderRadius: 10,
+        background: "#0e252966",
+        border: "1px solid #1f4a4a",
+        animationDelay: `${delay}ms`,
+      }}
+      title={`${nombre} — ${pct}% (${total} carpetas)`}
+    >
+      <svg width={size} height={size}>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#1f4a4a" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dashoffset .5s ease" }}
+        />
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="16" fontWeight="700" fill="#eef7f5">
+          {pct}%
+        </text>
+      </svg>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#b7c9c6", textAlign: "center", lineHeight: 1.25, maxWidth: 130 }}>
+        {nombre}
+      </div>
+      <div style={{ fontSize: 10, color: "#8fa8a8" }}>{total} carpetas</div>
+    </div>
+  );
+}
+
 function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
   const size = tamano || 128;
   const stroke = Math.max(9, Math.round(size * 0.06));
@@ -1421,9 +1536,49 @@ const selectStyle = {
   fontSize: 12,
 };
 
+// Hook chiquito: anima un número de su valor anterior al nuevo, tipo "contador".
+// Si el valor no es numérico (ej. "–" mientras carga), lo muestra directo sin animar.
+function useCountUp(target) {
+  const [display, setDisplay] = useState(target);
+  const prevRef = useRef(target);
+
+  useEffect(() => {
+    if (typeof target !== "number") {
+      setDisplay(target);
+      prevRef.current = target;
+      return;
+    }
+    const from = typeof prevRef.current === "number" ? prevRef.current : target;
+    const to = target;
+    if (from === to) {
+      setDisplay(to);
+      return;
+    }
+    const duracion = 650;
+    const inicio = performance.now();
+    let raf;
+    function tick(ahora) {
+      const t = Math.min(1, (ahora - inicio) / duracion);
+      const suavizado = 1 - Math.pow(1 - t, 3); // ease-out cúbico
+      setDisplay(Math.round(from + (to - from) * suavizado));
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        prevRef.current = to;
+      }
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+
+  return display;
+}
+
 function Card({ label, value, color, grande }) {
+  const valorAnimado = useCountUp(value);
   return (
     <div
+      className="chijnaya-tarjeta-viva"
       style={{
         background: "rgba(14,37,41,.65)",
         backdropFilter: "blur(6px)",
@@ -1434,7 +1589,7 @@ function Card({ label, value, color, grande }) {
         boxShadow: `0 0 20px ${color}22`,
       }}
     >
-      <div style={{ fontSize: grande ? 44 : 28, fontWeight: 700, textShadow: `0 0 14px ${color}55` }}>{value}</div>
+      <div style={{ fontSize: grande ? 44 : 28, fontWeight: 700, textShadow: `0 0 14px ${color}55` }}>{valorAnimado}</div>
       <div style={{ fontSize: grande ? 15 : 12, color: "#b7c9c6", letterSpacing: 0.3 }}>{label}</div>
     </div>
   );
@@ -1487,12 +1642,31 @@ function TendenciaChart({ historial, grande }) {
                 );
               })}
               <path d={pathArea} fill="url(#tendenciaGradient)" opacity="0.35" />
-              <path d={pathLinea} fill="none" stroke="#17a398" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d={pathLinea}
+                fill="none"
+                stroke="#17a398"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="3000"
+                strokeDashoffset="3000"
+                style={{ animation: "chijnayaDibujarLinea 1.4s ease forwards" }}
+              />
               {puntos.map((p, i) => (
                 <circle key={i} cx={p.x} cy={p.y} r={i === puntos.length - 1 ? 4.5 : 2.5} fill="#17a398">
                   <title>{`${p.fecha} — ${p.pct}%`}</title>
                 </circle>
               ))}
+              {/* Punto que pulsa sin parar sobre el último valor, para que se sienta "vivo" */}
+              <circle cx={puntos[puntos.length - 1].x} cy={puntos[puntos.length - 1].y} r="4.5" fill="none" stroke="#2dd4bf" strokeWidth="2">
+                <animate attributeName="r" values="4.5;13;4.5" dur="2.2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.9;0;0.9" dur="2.2s" repeatCount="indefinite" />
+              </circle>
+              {/* Punto brillante que recorre toda la línea sin parar */}
+              <circle r="4" fill="#eef7f5">
+                <animateMotion dur="3.4s" repeatCount="indefinite" path={pathLinea} />
+              </circle>
               <defs>
                 <linearGradient id="tendenciaGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#17a398" />
@@ -1507,6 +1681,14 @@ function TendenciaChart({ historial, grande }) {
           );
         })()
       )}
+      <style>{`
+        @keyframes chijnayaDibujarLinea {
+          to { stroke-dashoffset: 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          path[style] { animation: none !important; stroke-dashoffset: 0 !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1581,15 +1763,17 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
         <div style={{ display: "flex", gap: gap }}>
           {semanas.map((semana, si) => (
             <div key={si} style={{ display: "flex", flexDirection: "column", gap: gap }}>
-              {semana.map((d) => (
+              {semana.map((d, di) => (
                 <div
                   key={d.key}
+                  className="chijnaya-celda-heatmap"
                   title={`${d.fecha.toLocaleDateString("es-PE")} — ${d.count} evento${d.count !== 1 ? "s" : ""}`}
                   style={{
                     width: celda,
                     height: celda,
                     borderRadius: grande ? 5 : 3,
                     background: intensidad(d.count),
+                    animationDelay: `${(si * 7 + di) * 4}ms`,
                   }}
                 />
               ))}
@@ -1598,7 +1782,7 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
         </div>
 
         {/* Columna al costado: resumen del período (si hay datos) + leyenda de colores, siempre visible */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 220 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 240 }}>
           {tiposOrdenados.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
@@ -1640,12 +1824,12 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: 8,
-              paddingTop: tiposOrdenados.length > 0 ? 12 : 0,
+              gap: grande ? 12 : 9,
+              paddingTop: tiposOrdenados.length > 0 ? 14 : 0,
               borderTop: tiposOrdenados.length > 0 ? "1px solid #1f4a4a" : "none",
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
+            <div style={{ fontSize: grande ? 15 : 13.5, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
               Intensidad
             </div>
             {[
@@ -1654,12 +1838,20 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
               { label: "Media", color: "#17a398" },
               { label: "Alta", color: "#2dd4bf" },
             ].map((nivel) => (
-              <div key={nivel.label} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
-                <div style={{ width: 16, height: 16, borderRadius: 4, background: nivel.color, flexShrink: 0 }} />
-                <span style={{ color: "#b7c9c6" }}>{nivel.label}</span>
+              <div key={nivel.label} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: grande ? 17 : 15 }}>
+                <div
+                  style={{
+                    width: grande ? 24 : 20,
+                    height: grande ? 24 : 20,
+                    borderRadius: 5,
+                    background: nivel.color,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ color: "#dceeec", fontWeight: 500 }}>{nivel.label}</span>
               </div>
             ))}
-            <div style={{ fontSize: 11, color: "#5c7a78", marginTop: 4, maxWidth: 200 }}>
+            <div style={{ fontSize: grande ? 13 : 12, color: "#8fa8a8", marginTop: 6, maxWidth: 240, lineHeight: 1.4 }}>
               Cada cuadro es un día. Más brillante = más eventos ese día.
             </div>
           </div>
