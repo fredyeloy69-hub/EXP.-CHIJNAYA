@@ -1058,6 +1058,11 @@ export default function Dashboard() {
                       <span style={{ color }}>{EVENTO_LABEL[e.tipo] || e.tipo}</span>{" "}
                       <strong>{e.item}</strong>
                     </div>
+                    {e.motivo && (
+                      <div style={{ fontSize: 11.5, color: "#9db3b0", marginTop: 2, fontStyle: "italic" }}>
+                        "{e.motivo}"
+                      </div>
+                    )}
                     <div style={{ fontSize: 11, color: "#9db3b0", marginTop: 2 }}>{e.ruta}</div>
                     <div style={{ fontSize: 10, color: "#8fa8a8", marginTop: 2 }} title={fecha ? fecha.toLocaleString("es-PE") : ""}>
                       {tiempoRelativo(fecha)}
@@ -1527,7 +1532,7 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
       <div style={{ fontSize: grande ? 17 : 14, fontWeight: 700, color: "#dceeec", marginBottom: grande ? 18 : 10 }}>
         🔥 Actividad ({DIAS} días)
       </div>
-      <div style={{ display: "flex", gap: grande ? 40 : 16, alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: grande ? 40 : 20, alignItems: "flex-start", flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: gap }}>
           {semanas.map((semana, si) => (
             <div key={si} style={{ display: "flex", flexDirection: "column", gap: gap }}>
@@ -1547,62 +1552,73 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
           ))}
         </div>
 
-        {tiposOrdenados.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 220 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
-              Resumen del período
+        {/* Columna al costado: resumen del período (si hay datos) + leyenda de colores, siempre visible */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 220 }}>
+          {tiposOrdenados.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                Resumen del período
+              </div>
+              {tiposOrdenados.map((tipo) => (
+                <div key={tipo} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15 }}>
+                  <span
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: (EVENTO_COLOR[tipo] || "#9db3b0") + "22",
+                      border: `1.5px solid ${EVENTO_COLOR[tipo] || "#9db3b0"}`,
+                      color: EVENTO_COLOR[tipo] || "#9db3b0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 13,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {EVENTO_ICONO[tipo] || "•"}
+                  </span>
+                  <strong>{conteoPorTipo[tipo]}</strong>
+                  <span style={{ color: "#b7c9c6" }}>{EVENTO_LABEL[tipo] || tipo}</span>
+                </div>
+              ))}
+              {diaMasActivo && diaMasActivo.count > 0 && (
+                <div style={{ fontSize: 12.5, color: "#8fa8a8", marginTop: 2, paddingTop: 10, borderTop: "1px solid #1f4a4a" }}>
+                  Día más activo: <strong style={{ color: "#dceeec" }}>{diaMasActivo.fecha.toLocaleDateString("es-PE")}</strong> ({diaMasActivo.count} eventos)
+                </div>
+              )}
             </div>
-            {tiposOrdenados.map((tipo) => (
-              <div key={tipo} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15 }}>
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    background: (EVENTO_COLOR[tipo] || "#9db3b0") + "22",
-                    border: `1.5px solid ${EVENTO_COLOR[tipo] || "#9db3b0"}`,
-                    color: EVENTO_COLOR[tipo] || "#9db3b0",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 13,
-                    flexShrink: 0,
-                  }}
-                >
-                  {EVENTO_ICONO[tipo] || "•"}
-                </span>
-                <strong>{conteoPorTipo[tipo]}</strong>
-                <span style={{ color: "#b7c9c6" }}>{EVENTO_LABEL[tipo] || tipo}</span>
+          )}
+
+          {/* Leyenda de colores — en lista vertical, al costado del calendario */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+              paddingTop: tiposOrdenados.length > 0 ? 12 : 0,
+              borderTop: tiposOrdenados.length > 0 ? "1px solid #1f4a4a" : "none",
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#9db3b0", textTransform: "uppercase", letterSpacing: 0.4 }}>
+              Intensidad
+            </div>
+            {[
+              { label: "Sin actividad", color: "#1f4a4a" },
+              { label: "Baja", color: "#0e7c72" },
+              { label: "Media", color: "#17a398" },
+              { label: "Alta", color: "#2dd4bf" },
+            ].map((nivel) => (
+              <div key={nivel.label} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+                <div style={{ width: 16, height: 16, borderRadius: 4, background: nivel.color, flexShrink: 0 }} />
+                <span style={{ color: "#b7c9c6" }}>{nivel.label}</span>
               </div>
             ))}
-            {diaMasActivo && diaMasActivo.count > 0 && (
-              <div style={{ fontSize: 12.5, color: "#8fa8a8", marginTop: 6, paddingTop: 10, borderTop: "1px solid #1f4a4a" }}>
-                Día más activo: <strong style={{ color: "#dceeec" }}>{diaMasActivo.fecha.toLocaleDateString("es-PE")}</strong> ({diaMasActivo.count} eventos)
-              </div>
-            )}
+            <div style={{ fontSize: 11, color: "#5c7a78", marginTop: 4, maxWidth: 200 }}>
+              Cada cuadro es un día. Más brillante = más eventos ese día.
+            </div>
           </div>
-        )}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: grande ? 10 : 6,
-          marginTop: grande ? 18 : 10,
-          fontSize: grande ? 13 : 10,
-          color: "#8fa8a8",
-          flexWrap: "wrap",
-        }}
-      >
-        <span>Sin actividad</span>
-        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#1f4a4a" }} />
-        <span style={{ marginLeft: 8 }}>Baja</span>
-        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#0e7c72" }} />
-        <span style={{ marginLeft: 8 }}>Media</span>
-        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#17a398" }} />
-        <span style={{ marginLeft: 8 }}>Alta</span>
-        <div style={{ width: grande ? 18 : 10, height: grande ? 18 : 10, borderRadius: 4, background: "#2dd4bf" }} />
-        <span style={{ marginLeft: 10, color: "#5c7a78" }}>— cada cuadro es un día, más brillante = más eventos ese día</span>
+        </div>
       </div>
     </div>
   );
