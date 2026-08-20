@@ -119,6 +119,7 @@ export default function Dashboard() {
   const [historial, setHistorial] = useState([]);
   const [actividadPorDia, setActividadPorDia] = useState({});
   const [marcandoId, setMarcandoId] = useState(null);
+  const [mostrarMarcadas, setMostrarMarcadas] = useState(false);
   const [usuarioGoogle, setUsuarioGoogle] = useState(null); // {email, displayName} o null si no inició sesión
 
   useEffect(() => {
@@ -296,11 +297,17 @@ export default function Dashboard() {
     carpetasPorArea[a].push(c);
   }
 
+  // Carpetas marcadas manualmente como completa — para el panel "Marcadas manualmente"
+  const carpetasForzadas = carpetas
+    .filter((c) => c.forzada)
+    .sort((a, b) => new Date(b.marcadoEn || 0) - new Date(a.marcadoEn || 0));
+
   // Estadisticas por area: total, completas, incompletas, vacias — para el circulo de progreso
   const areaStats = {};
-  // Estadisticas por ESPECIALIDAD (segundo segmento de la ruta), juntando las 3 areas —
-  // para los circulos de "avance por especialidad" del modo presentacion.
-  const especialidadStats = {};
+  // Estadisticas por ESPECIALIDAD, anidadas DENTRO de cada área madre — igual que
+  // el resumen del PDF. Es dinámico: si mañana hay 4 áreas en vez de 3, o cambian
+  // las especialidades de cada una, esto se recalcula solo desde "carpetas".
+  const especialidadPorArea = {};
   for (const c of carpetas) {
     const a = c.area || "Sin área";
     if (!areaStats[a])
@@ -314,16 +321,14 @@ export default function Dashboard() {
 
     const partesRuta = (c.ruta || c.nombre || "").split(" / ").filter(Boolean);
     const especialidad = partesRuta.length > 1 ? partesRuta[1] : "(raíz)";
-    if (!especialidadStats[especialidad])
-      especialidadStats[especialidad] = { total: 0, completas: 0, archivosNecesarios: 0, archivosCompletados: 0 };
-    especialidadStats[especialidad].total++;
-    if (c.estado === "completa") especialidadStats[especialidad].completas++;
-    especialidadStats[especialidad].archivosNecesarios += c.archivosNecesarios || 0;
-    especialidadStats[especialidad].archivosCompletados += c.archivosCompletados || 0;
+    if (!especialidadPorArea[a]) especialidadPorArea[a] = {};
+    if (!especialidadPorArea[a][especialidad])
+      especialidadPorArea[a][especialidad] = { total: 0, completas: 0, archivosNecesarios: 0, archivosCompletados: 0 };
+    especialidadPorArea[a][especialidad].total++;
+    if (c.estado === "completa") especialidadPorArea[a][especialidad].completas++;
+    especialidadPorArea[a][especialidad].archivosNecesarios += c.archivosNecesarios || 0;
+    especialidadPorArea[a][especialidad].archivosCompletados += c.archivosCompletados || 0;
   }
-  const especialidadesOrdenadas = Object.keys(especialidadStats).sort((x, y) =>
-    x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" })
-  );
 
   let listaBase = carpetas;
   if (filtroEstado === "pendientes") {
@@ -502,6 +507,29 @@ export default function Dashboard() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {carpetasForzadas.length > 0 && (
+            <button
+              onClick={() => setMostrarMarcadas(true)}
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                padding: "14px 18px",
+                borderRadius: 14,
+                border: "1.5px solid #2dd4bf66",
+                background: "#0e2529",
+                color: "#2dd4bf",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                whiteSpace: "nowrap",
+              }}
+              title="Ver todas las carpetas marcadas manualmente como completas"
+            >
+              <span style={{ fontSize: 16 }}>✓</span>
+              Marcadas manualmente ({carpetasForzadas.length})
+            </button>
+          )}
           <button
             onClick={() => setModoPresentacion((v) => !v)}
             style={{
@@ -703,25 +731,49 @@ export default function Dashboard() {
         </div>
       )}
 
-      {modoPresentacion && especialidadesOrdenadas.length > 0 && (
+      {modoPresentacion && areas.length > 0 && (
         <div className="chijnaya-fade-in chijnaya-modo-transicion" style={{ marginTop: 36 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#dceeec", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "#2dd4bf" }}>»» </span>AVANCE POR ESPECIALIDAD
-            <span style={{ fontSize: 12, fontWeight: 400, color: "#8fa8a8" }}>({especialidadesOrdenadas.length})</span>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#dceeec", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#2dd4bf" }}>»» </span>AVANCE POR ESPECIALIDAD, POR ÁREA
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 18,
-            }}
-          >
-            {especialidadesOrdenadas.map((esp, i) => {
-              const s = especialidadStats[esp];
-              const pctEsp = s.archivosNecesarios > 0 ? Math.round((s.archivosCompletados / s.archivosNecesarios) * 100) : 0;
-              return <EspecialidadMiniCard key={esp} nombre={esp} pct={pctEsp} total={s.total} delay={i * 40} />;
-            })}
-          </div>
+          {areas.map((a) => {
+            const especialidadesDelArea = especialidadPorArea[a] || {};
+            const nombresOrdenados = Object.keys(especialidadesDelArea).sort((x, y) =>
+              x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" })
+            );
+            if (nombresOrdenados.length === 0) return null;
+            return (
+              <div key={a} style={{ marginBottom: 28 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: colorForArea(a),
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    marginBottom: 12,
+                    paddingBottom: 8,
+                    borderBottom: `1px solid ${colorForArea(a)}44`,
+                  }}
+                >
+                  {a} <span style={{ color: "#8fa8a8", fontWeight: 400, textTransform: "none" }}>({nombresOrdenados.length} especialidades)</span>
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                    gap: 16,
+                  }}
+                >
+                  {nombresOrdenados.map((esp, i) => {
+                    const s = especialidadesDelArea[esp];
+                    const pctEsp = s.archivosNecesarios > 0 ? Math.round((s.archivosCompletados / s.archivosNecesarios) * 100) : 0;
+                    return <EspecialidadMiniCard key={esp} nombre={esp} pct={pctEsp} total={s.total} delay={i * 30} />;
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -1202,6 +1254,98 @@ export default function Dashboard() {
         {resumen?.ultimaSync?.toDate && ` · Última sincronización: ${tiempoRelativo(resumen.ultimaSync.toDate())}`}
       </div>
       </div>
+
+      {mostrarMarcadas && (
+        <div
+          onClick={() => setMostrarMarcadas(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,10,11,.75)",
+            backdropFilter: "blur(3px)",
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="chijnaya-fade-in"
+            style={{
+              background: "#0e2529",
+              border: "1px solid #2b5c5c",
+              borderRadius: 16,
+              width: "min(900px, 100%)",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 60px rgba(0,0,0,.5)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "18px 22px",
+                borderBottom: "1px solid #1f4a4a",
+              }}
+            >
+              <div style={{ fontSize: 17, fontWeight: 700, color: "#dceeec" }}>
+                ✓ Carpetas marcadas manualmente ({carpetasForzadas.length})
+              </div>
+              <button
+                onClick={() => setMostrarMarcadas(false)}
+                style={{
+                  fontSize: 13,
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #2b5c5c",
+                  background: "transparent",
+                  color: "#9db3b0",
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Cerrar
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "14px 22px 22px" }}>
+              {carpetasForzadas.length === 0 ? (
+                <div style={{ color: "#8fa8a8", fontSize: 13, padding: "20px 0" }}>
+                  No hay ninguna carpeta marcada manualmente todavía.
+                </div>
+              ) : (
+                carpetasForzadas.map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      padding: "12px 14px",
+                      marginBottom: 10,
+                      background: "#0a1e2066",
+                      border: "1px solid #1f4a4a",
+                      borderRadius: 10,
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, color: "#eef7f5", fontSize: 13.5 }}>{c.nombre}</div>
+                    <div style={{ fontSize: 11.5, color: "#9db3b0", marginTop: 2 }}>{c.ruta}</div>
+                    <div style={{ fontSize: 12, color: "#dceeec", marginTop: 8 }}>
+                      ✓ Marcada por <strong style={{ color: "#2dd4bf" }}>{c.marcadoPor || "alguien"}</strong>
+                      {c.marcadoEn && ` — ${tiempoRelativo(new Date(c.marcadoEn))}`}
+                    </div>
+                    {c.motivo && (
+                      <div style={{ fontSize: 12, color: "#9db3b0", marginTop: 4, fontStyle: "italic" }}>
+                        "{c.motivo}"
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
