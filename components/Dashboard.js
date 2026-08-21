@@ -89,6 +89,14 @@ const EVENTO_ICONO = {
   carpeta_desmarcada: "↺",
 };
 
+// Convierte "2026-08-19" (o un Date) en "Miércoles 19 de agosto de 2026"
+function formatearFechaLarga(fechaEntrada) {
+  const fecha = typeof fechaEntrada === "string" ? new Date(fechaEntrada + "T12:00:00") : fechaEntrada;
+  if (!fecha || isNaN(fecha.getTime())) return String(fechaEntrada);
+  const texto = fecha.toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 function tiempoRelativo(date) {
   if (!date) return "...";
   const diffMs = Date.now() - date.getTime();
@@ -459,6 +467,40 @@ export default function Dashboard() {
           box-shadow: 0 0 8px rgba(45,212,191,.6);
         }
 
+        /* Tooltip flotante propio (en vez del feo tooltip nativo del navegador) */
+        .chijnaya-tooltip-celda {
+          position: relative;
+        }
+        .chijnaya-tooltip-celda:hover::after {
+          content: attr(data-tooltip);
+          position: absolute;
+          bottom: 135%;
+          left: 50%;
+          transform: translateX(-50%);
+          background: #0e2529;
+          border: 1px solid #2b5c5c;
+          color: #eef7f5;
+          padding: 6px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          white-space: nowrap;
+          z-index: 60;
+          box-shadow: 0 6px 18px rgba(0,0,0,.5);
+          pointer-events: none;
+        }
+        .chijnaya-tooltip-celda:hover::before {
+          content: "";
+          position: absolute;
+          bottom: 122%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-top-color: #2b5c5c;
+          z-index: 60;
+          pointer-events: none;
+        }
+
         /* Transición suave al entrar/salir del modo presentación */
         .chijnaya-modo-transicion {
           animation: chijnayaModoEntrada .35s cubic-bezier(.2,.85,.35,1.15) both;
@@ -751,14 +793,29 @@ export default function Dashboard() {
                   style={{
                     fontSize: 13,
                     fontWeight: 700,
-                    color: colorForArea(a),
+                    color: "#eef7f5",
                     textTransform: "uppercase",
                     letterSpacing: 0.5,
                     marginBottom: 12,
-                    paddingBottom: 8,
-                    borderBottom: `1px solid ${colorForArea(a)}44`,
+                    padding: "8px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "rgba(8,28,31,.65)",
+                    borderRadius: 8,
+                    borderBottom: `2px solid ${colorForArea(a)}`,
                   }}
                 >
+                  <span
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      background: colorForArea(a),
+                      flexShrink: 0,
+                      boxShadow: `0 0 6px ${colorForArea(a)}`,
+                    }}
+                  />
                   {a} <span style={{ color: "#8fa8a8", fontWeight: 400, textTransform: "none" }}>({nombresOrdenados.length} especialidades)</span>
                 </div>
                 <div
@@ -1802,7 +1859,7 @@ function TendenciaChart({ historial, grande }) {
               />
               {puntos.map((p, i) => (
                 <circle key={i} cx={p.x} cy={p.y} r={i === puntos.length - 1 ? 4.5 : 2.5} fill="#17a398">
-                  <title>{`${p.fecha} — ${p.pct}%`}</title>
+                  <title>{`${formatearFechaLarga(p.fecha)} — ${p.pct}% de avance`}</title>
                 </circle>
               ))}
               {/* Punto que pulsa sin parar sobre el último valor, para que se sienta "vivo" */}
@@ -1869,12 +1926,13 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
     dias.push({ key, count: conteoPorDia[key] || 0, fecha: d });
   }
 
-  const maxCount = Math.max(1, ...dias.map((d) => d.count));
+  // Umbrales FIJOS (no relativos al día con más actividad) — así un día con una
+  // ráfaga grande (ej. un sync con cientos de archivos) no "aplasta" la escala
+  // y hace que los demás días con actividad normal se vean todos iguales a "sin actividad".
   function intensidad(count) {
     if (count === 0) return "#1f4a4a";
-    const ratio = count / maxCount;
-    if (ratio > 0.66) return "#2dd4bf";
-    if (ratio > 0.33) return "#17a398";
+    if (count >= 11) return "#2dd4bf";
+    if (count >= 4) return "#17a398";
     return "#0e7c72";
   }
 
@@ -1913,8 +1971,8 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
               {semana.map((d, di) => (
                 <div
                   key={d.key}
-                  className="chijnaya-celda-heatmap"
-                  title={`${d.fecha.toLocaleDateString("es-PE")} — ${d.count} evento${d.count !== 1 ? "s" : ""}`}
+                  className="chijnaya-celda-heatmap chijnaya-tooltip-celda"
+                  data-tooltip={`${formatearFechaLarga(d.fecha)} — ${d.count} evento${d.count !== 1 ? "s" : ""}`}
                   style={{
                     width: celda,
                     height: celda,
