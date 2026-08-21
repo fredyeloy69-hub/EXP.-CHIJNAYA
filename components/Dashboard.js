@@ -163,10 +163,12 @@ export default function Dashboard() {
     }
   }
 
-  function handleExportarExcelArea(areaNombre, carpetasDelArea) {
+  async function handleExportarExcelArea(areaNombre, carpetasDelArea) {
     setExportandoExcelArea(areaNombre);
     try {
-      generarReporteExcelPorArea(areaNombre, carpetasDelArea);
+      await generarReporteExcelPorArea(areaNombre, carpetasDelArea);
+    } catch (err) {
+      alert(`No se pudo generar el Excel: ${err.message}`);
     } finally {
       setExportandoExcelArea(null);
     }
@@ -194,10 +196,11 @@ export default function Dashboard() {
       );
       if (motivo === null) return; // canceló el prompt
     } else {
-      const confirmar = window.confirm(
-        "¿Seguro que quieres desmarcar esta carpeta? Volverá a depender de los archivos que tenga en Drive."
+      motivo = window.prompt(
+        "¿Por qué se desmarca? (ej. 'La marqué por error', 'Ya no aplica la excepción') — esto queda registrado en el historial, es opcional",
+        ""
       );
-      if (!confirmar) return;
+      if (motivo === null) return; // canceló el prompt
     }
 
     setMarcandoId(folderId);
