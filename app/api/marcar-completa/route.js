@@ -39,7 +39,12 @@ export async function POST(request) {
     } catch (err) {
       return NextResponse.json({ error: "Sesión inválida o vencida, vuelve a iniciar sesión" }, { status: 401 });
     }
-    const nombreUsuario = decoded.name || decoded.email || "Cuenta de Google verificada";
+    const nombreDecoded = decoded.name;
+    const correoDecoded = decoded.email;
+    const nombreUsuario =
+      nombreDecoded && correoDecoded
+        ? `${nombreDecoded} (${correoDecoded})`
+        : nombreDecoded || correoDecoded || "Cuenta de Google verificada";
 
     const nombreCarpeta = folderName || "(carpeta)";
     const rutaCarpeta = folderRuta || nombreCarpeta;
