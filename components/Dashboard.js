@@ -9,6 +9,8 @@ import {
   orderBy,
   query,
   limit,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import { generarReportePorArea } from "@/lib/exportarReporte";
 import { generarReporteExcelPorArea } from "@/lib/exportarExcel";
@@ -502,40 +504,6 @@ export default function Dashboard() {
           100% { transform: scale(1.9); opacity: 0; }
         }
 
-        /* Tooltip flotante propio (en vez del feo tooltip nativo del navegador) */
-        .chijnaya-tooltip-celda {
-          position: relative;
-        }
-        .chijnaya-tooltip-celda:hover::after {
-          content: attr(data-tooltip);
-          position: absolute;
-          bottom: 135%;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #0e2529;
-          border: 1px solid #2b5c5c;
-          color: #eef7f5;
-          padding: 6px 10px;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 600;
-          white-space: nowrap;
-          z-index: 60;
-          box-shadow: 0 6px 18px rgba(0,0,0,.5);
-          pointer-events: none;
-        }
-        .chijnaya-tooltip-celda:hover::before {
-          content: "";
-          position: absolute;
-          bottom: 122%;
-          left: 50%;
-          transform: translateX(-50%);
-          border: 5px solid transparent;
-          border-top-color: #2b5c5c;
-          z-index: 60;
-          pointer-events: none;
-        }
-
         /* Transición suave al entrar/salir del modo presentación */
         .chijnaya-modo-transicion {
           animation: chijnayaModoEntrada .35s cubic-bezier(.2,.85,.35,1.15) both;
@@ -770,11 +738,11 @@ export default function Dashboard() {
       {historial.length >= 2 ? (
         <div style={{ display: "grid", gridTemplateColumns: modoPresentacion ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
           <TendenciaChart historial={historial} grande={modoPresentacion} actividadPorDia={actividadPorDia} />
-          <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} />
+          <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} onMarcarCompleta={handleMarcarCompleta} marcandoId={marcandoId} />
         </div>
       ) : (
         <div style={{ marginBottom: 32 }}>
-          <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} />
+          <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} onMarcarCompleta={handleMarcarCompleta} marcandoId={marcandoId} />
         </div>
       )}
 
@@ -1372,7 +1340,7 @@ export default function Dashboard() {
               background: "#0e2529",
               border: "1px solid #2b5c5c",
               borderRadius: 16,
-              width: "min(900px, 100%)",
+              width: "min(1100px, 100%)",
               maxHeight: "85vh",
               display: "flex",
               flexDirection: "column",
@@ -1384,18 +1352,18 @@ export default function Dashboard() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "18px 22px",
+                padding: "20px 26px",
                 borderBottom: "1px solid #1f4a4a",
               }}
             >
-              <div style={{ fontSize: 17, fontWeight: 700, color: "#dceeec" }}>
+              <div style={{ fontSize: 19, fontWeight: 700, color: "#dceeec" }}>
                 ✓ Carpetas marcadas manualmente ({carpetasForzadas.length})
               </div>
               <button
                 onClick={() => setMostrarMarcadas(false)}
                 style={{
-                  fontSize: 13,
-                  padding: "6px 12px",
+                  fontSize: 14,
+                  padding: "7px 14px",
                   borderRadius: 8,
                   border: "1px solid #2b5c5c",
                   background: "transparent",
@@ -1406,9 +1374,9 @@ export default function Dashboard() {
                 ✕ Cerrar
               </button>
             </div>
-            <div style={{ overflowY: "auto", padding: "14px 22px 22px" }}>
+            <div style={{ overflowY: "auto", padding: "16px 26px 26px" }}>
               {carpetasForzadas.length === 0 ? (
-                <div style={{ color: "#8fa8a8", fontSize: 13, padding: "20px 0" }}>
+                <div style={{ color: "#8fa8a8", fontSize: 15, padding: "24px 0" }}>
                   No hay ninguna carpeta marcada manualmente todavía.
                 </div>
               ) : (
@@ -1416,21 +1384,42 @@ export default function Dashboard() {
                   <div
                     key={c.id}
                     style={{
-                      padding: "12px 14px",
-                      marginBottom: 10,
+                      padding: "16px 18px",
+                      marginBottom: 12,
                       background: "#0a1e2066",
                       border: "1px solid #1f4a4a",
                       borderRadius: 10,
                     }}
                   >
-                    <div style={{ fontWeight: 700, color: "#eef7f5", fontSize: 13.5 }}>{c.nombre}</div>
-                    <div style={{ fontSize: 11.5, color: "#9db3b0", marginTop: 2 }}>{c.ruta}</div>
-                    <div style={{ fontSize: 12, color: "#dceeec", marginTop: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: "#eef7f5", fontSize: 16 }}>{c.nombre}</div>
+                        <div style={{ fontSize: 13.5, color: "#9db3b0", marginTop: 3 }}>{c.ruta}</div>
+                      </div>
+                      <button
+                        onClick={() => handleMarcarCompleta(c.id, false, c.nombre, c.ruta)}
+                        disabled={marcandoId === c.id}
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 12,
+                          padding: "5px 12px",
+                          borderRadius: 20,
+                          border: "1px solid #e74c3c66",
+                          background: "transparent",
+                          color: marcandoId === c.id ? "#5c7a78" : "#e88f86",
+                          cursor: marcandoId === c.id ? "not-allowed" : "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {marcandoId === c.id ? "..." : "✕ Desmarcar"}
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 14.5, color: "#dceeec", marginTop: 10 }}>
                       ✓ Marcada por <strong style={{ color: "#2dd4bf" }}>{c.marcadoPor || "alguien"}</strong>
                       {c.marcadoEn && ` — ${tiempoRelativo(new Date(c.marcadoEn))}`}
                     </div>
                     {c.motivo && (
-                      <div style={{ fontSize: 12, color: "#9db3b0", marginTop: 4, fontStyle: "italic" }}>
+                      <div style={{ fontSize: 14, color: "#b7c9c6", marginTop: 6, fontStyle: "italic" }}>
                         "{c.motivo}"
                       </div>
                     )}
@@ -1841,11 +1830,11 @@ function Card({ label, value, color, grande }) {
 // cuenten la misma historia, solo que de forma distinta.
 function TendenciaChart({ historial, grande, actividadPorDia }) {
   const altoLinea = grande ? 190 : 130;
-  const altoBarras = grande ? 46 : 34; // franja de incidencias del Drive, debajo de la línea
+  const altoBarras = grande ? 54 : 42; // franja de incidencias del Drive, debajo de la línea
   const alto = altoLinea + altoBarras;
   const ancho = 600; // viewBox — el SVG escala solo al ancho real del contenedor
-  const paddingIzq = 34;
-  const paddingDer = 14;
+  const paddingIzq = 42;
+  const paddingDer = 18;
   const paddingArriba = 14;
 
   return (
@@ -1896,7 +1885,7 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
                 return (
                   <g key={v}>
                     <line x1={paddingIzq} y1={y} x2={ancho - paddingDer} y2={y} stroke="#2b5c5c" strokeWidth="1" strokeDasharray="3,4" />
-                    <text x={paddingIzq - 6} y={y + 3} textAnchor="end" fontSize="8.5" fill="#5c7a78">
+                    <text x={paddingIzq - 6} y={y + 3} textAnchor="end" fontSize="11" fill="#8fa8a8" fontWeight="600">
                       {v}%
                     </text>
                   </g>
@@ -1942,7 +1931,7 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
 
               {/* Franja inferior: incidencias del Drive por día (mismo dato que el calendario) + eje X de fechas */}
               <line x1={paddingIzq} y1={altoLinea + 6} x2={ancho - paddingDer} y2={altoLinea + 6} stroke="#1f4a4a" strokeWidth="1" />
-              <text x={paddingIzq} y={altoLinea + 15} fontSize="7.5" fill="#5c7a78">
+              <text x={paddingIzq} y={altoLinea + 15} fontSize="10" fill="#8fa8a8" fontWeight="700">
                 INCIDENCIAS DEL DRIVE POR DÍA
               </text>
               {puntos.map((p, i) => {
@@ -1968,7 +1957,7 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
                   ? p.fecha
                   : fechaObj.toLocaleDateString("es-PE", { day: "numeric", month: "short" });
                 return (
-                  <text key={i} x={p.x} y={alto - 2} textAnchor="middle" fontSize="7.5" fill="#8fa8a8">
+                  <text key={i} x={p.x} y={alto - 2} textAnchor="middle" fontSize="10.5" fill="#c8e8e5" fontWeight="600">
                     {etiqueta}
                   </text>
                 );
@@ -1991,8 +1980,12 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
 
 // Mapa de calor tipo GitHub — cuadraditos por día mostrando cuánta actividad hubo
 // (subidas, reemplazos, borrados, etc.), usando la colección "eventos".
-function ActividadHeatmap({ actividadPorDia, grande }) {
+function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoId }) {
   const DIAS = grande ? 119 : 84; // ~17 o ~12 semanas
+  const [tooltip, setTooltip] = useState(null); // {x, y, texto} o null
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null); // {key, fecha, count} o null
+  const [eventosDelDia, setEventosDelDia] = useState(null); // null = cargando, [] = sin eventos, [...] = lista
+  const contenedorRef = useRef(null);
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -2043,6 +2036,37 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
   const tiposOrdenados = Object.keys(conteoPorTipo).sort((a, b) => conteoPorTipo[b] - conteoPorTipo[a]);
   const diaMasActivo = dias.reduce((max, d) => (d.count > (max?.count || 0) ? d : max), null);
 
+  // Consulta bajo demanda (solo al hacer click, no de fondo) todos los eventos
+  // reales de Drive que caen en un día específico, en HORA DE LIMA.
+  async function abrirDetalleDia(d) {
+    setDiaSeleccionado(d);
+    setEventosDelDia(null); // "cargando"
+    try {
+      // Lima es UTC-5 todo el año (sin horario de verano) — medianoche en Lima
+      // del día "d.key" equivale a las 05:00 UTC de ese mismo día.
+      const inicioUTC = new Date(`${d.key}T05:00:00.000Z`);
+      const finUTC = new Date(inicioUTC.getTime() + 24 * 60 * 60 * 1000);
+      const q = query(
+        collection(db, "eventos"),
+        where("timestamp", ">=", inicioUTC),
+        where("timestamp", "<", finUTC),
+        orderBy("timestamp", "desc")
+      );
+      const snap = await getDocs(q);
+      setEventosDelDia(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    } catch (err) {
+      setEventosDelDia([]);
+    }
+  }
+
+  function mostrarTooltip(e, texto) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const anchoAprox = Math.min(280, texto.length * 5.8 + 24); // estimado, para no salirse de la pantalla
+    let x = rect.left + rect.width / 2;
+    x = Math.max(anchoAprox / 2 + 8, Math.min(window.innerWidth - anchoAprox / 2 - 8, x));
+    setTooltip({ x, y: rect.top, texto });
+  }
+
   return (
     <div
       style={{
@@ -2062,17 +2086,21 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
             <div key={si} style={{ display: "flex", flexDirection: "column", gap: gap }}>
               {semana.map((d, di) => {
                 const esHoy = d.key === fechaLimaISO(new Date());
+                const textoTooltip = `${formatearFechaLarga(d.fecha)}${esHoy ? " (hoy)" : ""} — ${d.count} evento${d.count !== 1 ? "s" : ""} · click para ver detalle`;
                 return (
                   <div
                     key={d.key}
-                    className={`chijnaya-celda-heatmap chijnaya-tooltip-celda${esHoy ? " chijnaya-celda-hoy" : ""}`}
-                    data-tooltip={`${formatearFechaLarga(d.fecha)}${esHoy ? " (hoy)" : ""} — ${d.count} evento${d.count !== 1 ? "s" : ""}`}
+                    className={`chijnaya-celda-heatmap${esHoy ? " chijnaya-celda-hoy" : ""}`}
+                    onMouseEnter={(e) => mostrarTooltip(e, textoTooltip)}
+                    onMouseLeave={() => setTooltip(null)}
+                    onClick={() => abrirDetalleDia(d)}
                     style={{
                       width: celda,
                       height: celda,
                       borderRadius: grande ? 5 : 3,
                       background: intensidad(d.count),
                       animationDelay: `${(si * 7 + di) * 4}ms`,
+                      cursor: "pointer",
                     }}
                   />
                 );
@@ -2157,6 +2185,176 @@ function ActividadHeatmap({ actividadPorDia, grande }) {
           </div>
         </div>
       </div>
+
+      {/* Tooltip flotante — posicionado con JS según el borde de la pantalla, nunca se corta */}
+      {tooltip && (
+        <div
+          style={{
+            position: "fixed",
+            left: tooltip.x,
+            top: tooltip.y - 10,
+            transform: "translate(-50%, -100%)",
+            background: "#0e2529",
+            border: "1px solid #2b5c5c",
+            color: "#eef7f5",
+            padding: "7px 11px",
+            borderRadius: 7,
+            fontSize: 11.5,
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            zIndex: 200,
+            boxShadow: "0 6px 18px rgba(0,0,0,.5)",
+            pointerEvents: "none",
+          }}
+        >
+          {tooltip.texto}
+        </div>
+      )}
+
+      {/* Modal: detalle de incidencias de un día específico, no interfiere con la ventana principal */}
+      {diaSeleccionado && (
+        <div
+          onClick={() => setDiaSeleccionado(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,10,11,.75)",
+            backdropFilter: "blur(3px)",
+            zIndex: 150,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="chijnaya-fade-in"
+            style={{
+              background: "#0e2529",
+              border: "1px solid #2b5c5c",
+              borderRadius: 16,
+              width: "min(600px, 100%)",
+              maxHeight: "80vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 60px rgba(0,0,0,.5)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "16px 20px",
+                borderBottom: "1px solid #1f4a4a",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#dceeec" }}>
+                  {formatearFechaLarga(diaSeleccionado.fecha)}
+                </div>
+                <div style={{ fontSize: 12, color: "#8fa8a8", marginTop: 2 }}>
+                  {diaSeleccionado.count} evento{diaSeleccionado.count !== 1 ? "s" : ""} ese día
+                </div>
+              </div>
+              <button
+                onClick={() => setDiaSeleccionado(null)}
+                style={{
+                  fontSize: 13,
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #2b5c5c",
+                  background: "transparent",
+                  color: "#9db3b0",
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Cerrar
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "14px 20px 20px" }}>
+              {eventosDelDia === null ? (
+                <div style={{ color: "#8fa8a8", fontSize: 13, padding: "20px 0", textAlign: "center" }}>
+                  Cargando...
+                </div>
+              ) : eventosDelDia.length === 0 ? (
+                <div style={{ color: "#8fa8a8", fontSize: 13, padding: "20px 0", textAlign: "center" }}>
+                  No hay incidencias registradas para este día.
+                </div>
+              ) : (
+                eventosDelDia.map((e) => {
+                  const color = EVENTO_COLOR[e.tipo] || "#9db3b0";
+                  const icono = EVENTO_ICONO[e.tipo] || "•";
+                  const fecha = e.timestamp?.toDate ? e.timestamp.toDate() : null;
+                  return (
+                    <div
+                      key={e.id}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        padding: "10px 0",
+                        borderBottom: "1px solid #1f4a4a",
+                      }}
+                    >
+                      <div
+                        style={{
+                          flexShrink: 0,
+                          width: 26,
+                          height: 26,
+                          borderRadius: "50%",
+                          background: color + "22",
+                          border: `1.5px solid ${color}`,
+                          color,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {icono}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13 }}>
+                          <strong>{e.usuario}</strong> <span style={{ color }}>{EVENTO_LABEL[e.tipo] || e.tipo}</span>{" "}
+                          <strong>{e.item}</strong>
+                        </div>
+                        {e.motivo && (
+                          <div style={{ fontSize: 11.5, color: "#9db3b0", marginTop: 2, fontStyle: "italic" }}>"{e.motivo}"</div>
+                        )}
+                        <div style={{ fontSize: 11, color: "#9db3b0", marginTop: 2 }}>{e.ruta}</div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                          <div style={{ fontSize: 10, color: "#8fa8a8" }}>
+                            {fecha ? fecha.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" }) : ""}
+                          </div>
+                          {e.tipo === "carpeta_marcada_completa" && e.folderId && onMarcarCompleta && (
+                            <button
+                              onClick={() => onMarcarCompleta(e.folderId, false, e.item, e.ruta)}
+                              disabled={marcandoId === e.folderId}
+                              style={{
+                                fontSize: 10,
+                                padding: "3px 9px",
+                                borderRadius: 20,
+                                border: "1px solid #e74c3c66",
+                                background: "transparent",
+                                color: marcandoId === e.folderId ? "#5c7a78" : "#e88f86",
+                                cursor: marcandoId === e.folderId ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {marcandoId === e.folderId ? "..." : "✕ Desmarcar"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
