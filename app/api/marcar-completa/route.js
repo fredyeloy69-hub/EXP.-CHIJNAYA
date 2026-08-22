@@ -97,6 +97,7 @@ export async function POST(request) {
       ruta: rutaCarpeta,
       usuario: nombreUsuario,
       motivo: motivo || null,
+      folderId,
       timestamp: FieldValue.serverTimestamp(),
     });
 
@@ -105,7 +106,7 @@ export async function POST(request) {
     await adminDb
       .collection("_meta")
       .doc("actividadPorDia")
-      .set({ [`${fechaHoy}.${tipoEvento}`]: FieldValue.increment(1) }, { merge: true });
+      .set({ [fechaHoy]: { [tipoEvento]: FieldValue.increment(1) } }, { merge: true });
 
     return NextResponse.json({ ok: true });
   } catch (err) {
