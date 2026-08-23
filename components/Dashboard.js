@@ -736,7 +736,7 @@ export default function Dashboard() {
 
       {/* Tendencia de avance + mapa de calor de actividad */}
       {historial.length >= 2 ? (
-        <div style={{ display: "grid", gridTemplateColumns: modoPresentacion ? "1fr" : "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
           <TendenciaChart historial={historial} grande={modoPresentacion} actividadPorDia={actividadPorDia} />
           <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} onMarcarCompleta={handleMarcarCompleta} marcandoId={marcandoId} />
         </div>
@@ -1982,7 +1982,28 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
 // (subidas, reemplazos, borrados, etc.), usando la colección "eventos".
 function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoId }) {
   const DIAS = grande ? 119 : 84; // ~17 o ~12 semanas
-  const [tooltip, setTooltip] = useState(null); // {x, y, texto} o null
+  const [tooltip, setTooltip] = useState(null); // {anclaX, anclaY, texto} o null
+  const [tooltipPos, setTooltipPos] = useState(null); // {left, top} ya con el ancho real medido
+  const tooltipRef = useRef(null);
+
+  useEffect(() => {
+    if (!tooltip) {
+      setTooltipPos(null);
+      return;
+    }
+    // Se mide el tooltip DESPUÉS de que ya está en el DOM (aunque invisible),
+    // para conocer su ancho REAL — así nunca se corta, sin importar qué tan
+    // larga sea la fecha o si el cuadrado está pegado al borde de la pantalla.
+    const el = tooltipRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    let left = tooltip.anclaX - rect.width / 2;
+    left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, left));
+    let top = tooltip.anclaY - rect.height - 10;
+    if (top < 8) top = tooltip.anclaY + 18; // si no cabe arriba, se muestra abajo del cuadrado
+    setTooltipPos({ left, top });
+  }, [tooltip]);
+
   const [diaSeleccionado, setDiaSeleccionado] = useState(null); // {key, fecha, count} o null
   const [eventosDelDia, setEventosDelDia] = useState(null); // null = cargando, [] = sin eventos, [...] = lista
   const contenedorRef = useRef(null);
@@ -2061,10 +2082,7 @@ function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoI
 
   function mostrarTooltip(e, texto) {
     const rect = e.currentTarget.getBoundingClientRect();
-    const anchoAprox = Math.min(280, texto.length * 5.8 + 24); // estimado, para no salirse de la pantalla
-    let x = rect.left + rect.width / 2;
-    x = Math.max(anchoAprox / 2 + 8, Math.min(window.innerWidth - anchoAprox / 2 - 8, x));
-    setTooltip({ x, y: rect.top, texto });
+    setTooltip({ anclaX: rect.left + rect.width / 2, anclaY: rect.top, texto });
   }
 
   return (
@@ -2186,14 +2204,15 @@ function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoI
         </div>
       </div>
 
-      {/* Tooltip flotante — posicionado con JS según el borde de la pantalla, nunca se corta */}
+      {/* Tooltip flotante — posicionado con JS midiendo el ancho real, nunca se corta */}
       {tooltip && (
         <div
+          ref={tooltipRef}
           style={{
             position: "fixed",
-            left: tooltip.x,
-            top: tooltip.y - 10,
-            transform: "translate(-50%, -100%)",
+            left: tooltipPos ? tooltipPos.left : tooltip.anclaX,
+            top: tooltipPos ? tooltipPos.top : tooltip.anclaY,
+            visibility: tooltipPos ? "visible" : "hidden",
             background: "#0e2529",
             border: "1px solid #2b5c5c",
             color: "#eef7f5",
