@@ -1829,13 +1829,13 @@ function Card({ label, value, color, grande }) {
 // actividad) como mini-barras debajo de la línea — para que ambos gráficos
 // cuenten la misma historia, solo que de forma distinta.
 function TendenciaChart({ historial, grande, actividadPorDia }) {
-  const altoLinea = grande ? 190 : 130;
-  const altoBarras = grande ? 54 : 42; // franja de incidencias del Drive, debajo de la línea
+  const altoLinea = grande ? 320 : 260;
+  const altoBarras = grande ? 80 : 62; // franja de incidencias del Drive, debajo de la línea
   const alto = altoLinea + altoBarras;
   const ancho = 600; // viewBox — el SVG escala solo al ancho real del contenedor
   const paddingIzq = 42;
   const paddingDer = 18;
-  const paddingArriba = 14;
+  const paddingArriba = 20;
 
   return (
     <div
