@@ -2204,7 +2204,7 @@ function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoI
         </div>
       </div>
 
-      {/* Tooltip flotante — posicionado con JS midiendo el ancho real, nunca se corta */}
+      {/* Tooltip flotante — ancho fijo, el texto se envuelve en 2-3 líneas en vez de una línea larga */}
       {tooltip && (
         <div
           ref={tooltipRef}
@@ -2216,11 +2216,13 @@ function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoI
             background: "#0e2529",
             border: "1px solid #2b5c5c",
             color: "#eef7f5",
-            padding: "7px 11px",
+            padding: "8px 12px",
             borderRadius: 7,
             fontSize: 11.5,
             fontWeight: 600,
-            whiteSpace: "nowrap",
+            width: 150,
+            lineHeight: 1.4,
+            textAlign: "center",
             zIndex: 200,
             boxShadow: "0 6px 18px rgba(0,0,0,.5)",
             pointerEvents: "none",
