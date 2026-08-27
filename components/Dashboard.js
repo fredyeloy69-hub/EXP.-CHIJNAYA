@@ -180,7 +180,13 @@ export default function Dashboard() {
   async function handleExportarExcelArea(areaNombre, carpetasDelArea) {
     setExportandoExcelArea(areaNombre);
     try {
-      await generarReporteExcelPorArea(areaNombre, carpetasDelArea);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Tiempo de espera agotado al generar el Excel")), 10000)
+      );
+      await Promise.race([
+        generarReporteExcelPorArea(areaNombre, carpetasDelArea),
+        timeoutPromise,
+      ]);
     } catch (err) {
       alert(`No se pudo generar el Excel: ${err.message}`);
     } finally {
@@ -1358,7 +1364,6 @@ function EspecialidadMiniCard({ nombre, pct, total, incompletas = 0, vacias = 0,
         {nombre}
       </div>
       <div style={{ fontSize: 12, color: "#9db3b0", fontWeight: 700 }}>{total} carpetas</div>
-      {/* Texto pequeño de inc. y vacías ampliado */}
       <div style={{ fontSize: 13, textAlign: "center", display: "flex", gap: 10, marginTop: 4 }}>
         <span style={{ color: "#f39c12", fontWeight: 700 }}>{incompletas} inc.</span>
         <span style={{ color: "#e74c3c", fontWeight: 700 }}>{vacias} vacías</span>
@@ -1417,7 +1422,6 @@ function AreaMiniCard({ area, pct, total, incompletas = 0, vacias = 0, color, ac
       </div>
       <div style={{ fontSize: fontCount, color: "#9db3b0", fontWeight: 700 }}>{total} carpetas</div>
       {tamano && (
-        /* Texto pequeño de inc. y vacías ampliado en tarjeta grande */
         <div style={{ fontSize: 14, textAlign: "center", display: "flex", gap: 12, marginTop: 6 }}>
           <span style={{ color: "#f39c12", fontWeight: 700 }}>{incompletas} inc.</span>
           <span style={{ color: "#e74c3c", fontWeight: 700 }}>{vacias} vacías</span>
@@ -1539,12 +1543,12 @@ function Card({ label, value, color, grande }) {
   );
 }
 
-// Gráfico de Tendencia optimizado y ampliado para modo presentación
+// Gráfico de Tendencia optimizado con ancho dinámico para escalar perfectamente en modo presentación y zoom
 function TendenciaChart({ historial, grande, actividadPorDia }) {
   const altoLinea = grande ? 420 : 280;
   const altoBarras = grande ? 100 : 70;
   const alto = altoLinea + altoBarras;
-  const ancho = 720;
+  const ancho = grande ? 960 : 720; // Ancho adaptativo para escalar armónicamente sin deformarse
   const paddingIzq = 50;
   const paddingDer = 24;
   const paddingArriba = 24;
