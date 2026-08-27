@@ -1314,7 +1314,7 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
 }
 
 function EspecialidadMiniCard({ nombre, pct, total, incompletas = 0, vacias = 0, delay }) {
-  const size = 110; // Círculo más grande
+  const size = 110;
   const stroke = 8;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -1416,7 +1416,7 @@ function AreaMiniCard({ area, pct, total, incompletas = 0, vacias = 0, color, ac
       </div>
       <div style={{ fontSize: fontCount, color: "#9db3b0", fontWeight: 700 }}>{total} carpetas</div>
       {tamano && (
-        <div style={{ fontSize: 11, textAlign: "center", display: "flex", gap: 8, marginTop: 2 }}>
+        <div style={{ fontSize: 13, textAlign: "center", display: "flex", gap: 10, marginTop: 4 }}>
           <span style={{ color: "#f39c12", fontWeight: 700 }}>{incompletas} inc.</span>
           <span style={{ color: "#e74c3c", fontWeight: 700 }}>{vacias} vacías</span>
         </div>
@@ -1430,7 +1430,7 @@ function AreaProgressPanel({ area, stats, color }) {
     <div style={{ display: "flex", alignItems: "center", gap: 20, background: "#0e2529", border: `1px solid ${color}44`, borderRadius: 10, padding: "16px 20px", marginBottom: 12 }}>
       <div>
         <div style={{ fontSize: 14, fontWeight: 700, color, marginBottom: 6 }}>{area}</div>
-        <div style={{ fontSize: 12, color: "#dceeec", lineHeight: 1.7 }}>
+        <div style={{ fontSize: 12, color: "#eef7f5", lineHeight: 1.7 }}>
           <div><span style={{ color: "#2ecc71", fontWeight: 700 }}>{stats.completas}</span> completas de <strong>{stats.total}</strong> carpetas</div>
           <div><span style={{ color: "#f39c12", fontWeight: 700 }}>{stats.incompletas}</span> incompletas · <span style={{ color: "#e74c3c", fontWeight: 700 }}>{stats.vacias}</span> vacías</div>
         </div>
