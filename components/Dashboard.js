@@ -12,7 +12,7 @@ import {
   where,
   getDocs,
 } from "firebase/firestore";
-import { generarReportePorArea } from "@/lib/exportarReporte";
+import { generarReportePorArea, generarReporteConsolidadoGlobal } from "@/lib/exportarReporte";
 import { generarReporteExcelPorArea } from "@/lib/exportarExcel";
 import { LOGO_PUNO_BASE64 } from "@/lib/logoPuno";
 import {
@@ -135,12 +135,14 @@ export default function Dashboard() {
   const [colapsoListo, setColapsoListo] = useState(false);
   const [exportandoArea, setExportandoArea] = useState(null);
   const [exportandoExcelArea, setExportandoExcelArea] = useState(null);
+  const [exportandoGlobal, setExportandoGlobal] = useState(false);
   const [modoPresentacion, setModoPresentacion] = useState(false);
   const [historial, setHistorial] = useState([]);
   const [actividadPorDia, setActividadPorDia] = useState({});
   const [marcandoId, setMarcandoId] = useState(null);
   const [mostrarMarcadas, setMostrarMarcadas] = useState(false);
   const [usuarioGoogle, setUsuarioGoogle] = useState(null);
+  const [rangoDiasHeatmap, setRangoDiasHeatmap] = useState(84); // 84 días por defecto
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -171,9 +173,22 @@ export default function Dashboard() {
   function handleExportarArea(areaNombre, carpetasDelArea) {
     setExportandoArea(areaNombre);
     try {
-      generarReportePorArea(areaNombre, carpetasDelArea);
+      const usuarioFirma = usuarioGoogle?.email || usuarioGoogle?.displayName || "Sistema Chijnaya";
+      generarReportePorArea(areaNombre, carpetasDelArea, { usuarioFirma });
     } finally {
       setExportandoArea(null);
+    }
+  }
+
+  async function handleExportarGlobal() {
+    setExportandoGlobal(true);
+    try {
+      const usuarioFirma = usuarioGoogle?.email || usuarioGoogle?.displayName || "Sistema Chijnaya";
+      generarReporteConsolidadoGlobal(carpetas, { usuarioFirma });
+    } catch (err) {
+      alert(`No se pudo generar el reporte consolidado: ${err.message}`);
+    } finally {
+      setExportandoGlobal(false);
     }
   }
 
@@ -506,6 +521,7 @@ export default function Dashboard() {
               {resumen?.ultimaSync?.toDate && (
                 <p style={{ color: "#8fa8a8", fontSize: 11, marginTop: 0 }}>
                   Última sincronización: {tiempoRelativo(resumen.ultimaSync.toDate())}
+                  {usuarioGoogle && <span style={{ marginLeft: 8, color: "#2dd4bf" }}>· {usuarioGoogle.email}</span>}
                 </p>
               )}
             </div>
@@ -533,6 +549,31 @@ export default function Dashboard() {
                 Marcadas manualmente ({carpetasForzadas.length})
               </button>
             )}
+
+            {/* BOTÓN REPORTE CONSOLIDADO GLOBAL */}
+            <button
+              onClick={handleExportarGlobal}
+              disabled={exportandoGlobal || carpetas.length === 0}
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                padding: "14px 18px",
+                borderRadius: 14,
+                border: "1.5px solid #17a39866",
+                background: exportandoGlobal ? "#122e2e" : "#0e2529",
+                color: exportandoGlobal ? "#8fa8a8" : "#7fe0d4",
+                cursor: exportandoGlobal || carpetas.length === 0 ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                whiteSpace: "nowrap",
+              }}
+              title="Generar PDF consolidado de todo el proyecto"
+            >
+              <span style={{ fontSize: 16 }}>📑</span>
+              {exportandoGlobal ? "Generando Global..." : "Reporte Consolidado PDF"}
+            </button>
+
             <button
               onClick={() => setModoPresentacion((v) => !v)}
               style={{
@@ -687,15 +728,46 @@ export default function Dashboard() {
           <Card label="Vacías" value={resumen?.vacias ?? "–"} color="#e74c3c" grande={modoPresentacion} />
         </div>
 
+        {/* Selector de Rango de Fechas para Actividad/Heatmap */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#dceeec" }}>
+            Visualización de Actividad e Historial
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {[
+              { label: "30 días", val: 30 },
+              { label: "84 días", val: 84 },
+              { label: "119 días", val: 119 },
+            ].map((btn) => (
+              <button
+                key={btn.val}
+                onClick={() => setRangoDiasHeatmap(btn.val)}
+                style={{
+                  fontSize: 11,
+                  padding: "5px 12px",
+                  borderRadius: 16,
+                  border: `1px solid ${rangoDiasHeatmap === btn.val ? "#2dd4bf" : "#2b5c5c"}`,
+                  background: rangoDiasHeatmap === btn.val ? "#2dd4bf22" : "#0e2529",
+                  color: rangoDiasHeatmap === btn.val ? "#2dd4bf" : "#b7c9c6",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Sección de Tendencia de avance y Actividad */}
         {historial.length >= 2 ? (
           <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 32 }}>
             <TendenciaChart historial={historial} grande={modoPresentacion} actividadPorDia={actividadPorDia} />
-            <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} onMarcarCompleta={handleMarcarCompleta} marcandoId={marcandoId} />
+            <ActividadHeatmap actividadPorDia={actividadPorDia} diasCustom={rangoDiasHeatmap} grande={modoPresentacion} onMarcarCompleta={handleMarcarCompleta} marcandoId={marcandoId} />
           </div>
         ) : (
           <div style={{ marginBottom: 32 }}>
-            <ActividadHeatmap actividadPorDia={actividadPorDia} grande={modoPresentacion} onMarcarCompleta={handleMarcarCompleta} marcandoId={marcandoId} />
+            <ActividadHeatmap actividadPorDia={actividadPorDia} diasCustom={rangoDiasHeatmap} grande={modoPresentacion} onMarcarCompleta={handleMarcarCompleta} marcandoId={marcandoId} />
           </div>
         )}
 
@@ -1665,8 +1737,8 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
   );
 }
 
-function ActividadHeatmap({ actividadPorDia, grande }) {
-  const DIAS = grande ? 119 : 84;
+function ActividadHeatmap({ actividadPorDia, diasCustom = 84, grande }) {
+  const DIAS = diasCustom;
   const [tooltip, setTooltip] = useState(null);
   const [tooltipPos, setTooltipPos] = useState(null);
   const tooltipRef = useRef(null);
