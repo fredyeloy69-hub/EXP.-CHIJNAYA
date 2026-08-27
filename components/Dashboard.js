@@ -1358,7 +1358,8 @@ function EspecialidadMiniCard({ nombre, pct, total, incompletas = 0, vacias = 0,
         {nombre}
       </div>
       <div style={{ fontSize: 12, color: "#9db3b0", fontWeight: 700 }}>{total} carpetas</div>
-      <div style={{ fontSize: 11, textAlign: "center", display: "flex", gap: 8, marginTop: 2 }}>
+      {/* Texto pequeño de inc. y vacías ampliado */}
+      <div style={{ fontSize: 13, textAlign: "center", display: "flex", gap: 10, marginTop: 4 }}>
         <span style={{ color: "#f39c12", fontWeight: 700 }}>{incompletas} inc.</span>
         <span style={{ color: "#e74c3c", fontWeight: 700 }}>{vacias} vacías</span>
       </div>
@@ -1416,7 +1417,8 @@ function AreaMiniCard({ area, pct, total, incompletas = 0, vacias = 0, color, ac
       </div>
       <div style={{ fontSize: fontCount, color: "#9db3b0", fontWeight: 700 }}>{total} carpetas</div>
       {tamano && (
-        <div style={{ fontSize: 13, textAlign: "center", display: "flex", gap: 10, marginTop: 4 }}>
+        /* Texto pequeño de inc. y vacías ampliado en tarjeta grande */
+        <div style={{ fontSize: 14, textAlign: "center", display: "flex", gap: 12, marginTop: 6 }}>
           <span style={{ color: "#f39c12", fontWeight: 700 }}>{incompletas} inc.</span>
           <span style={{ color: "#e74c3c", fontWeight: 700 }}>{vacias} vacías</span>
         </div>
