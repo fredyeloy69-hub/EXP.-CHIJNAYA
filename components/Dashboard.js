@@ -1362,10 +1362,8 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
   if (skipLevels > 0 && partes.length > skipLevels) {
     partes = partes.slice(skipLevels);
   }
+  // Se muestra TODO el ramal completo sin omitir ningún nivel con puntos suspensivos
   let mostrar = partes;
-  if (partes.length > 4) {
-    mostrar = [partes[0], "…", partes[partes.length - 2], partes[partes.length - 1]];
-  }
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 4, flex: 1, minWidth: 0 }}>
