@@ -1281,6 +1281,138 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {diaSeleccionado && (
+        <div
+          onClick={() => setDiaSeleccionado(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,10,11,.8)",
+            backdropFilter: "blur(4px)",
+            zIndex: 150,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="chijnaya-fade-in"
+            style={{
+              background: "#0e2529",
+              border: "1px solid #2b5c5c",
+              borderRadius: 16,
+              width: "min(750px, 100%)",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 60px rgba(0,0,0,.6)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "20px 26px",
+                borderBottom: "1px solid #1f4a4a",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#dceeec" }}>
+                  Actividad del {formatearFechaLarga(diaSeleccionado.fecha)}
+                </div>
+                <div style={{ fontSize: 12, color: "#8fa8a8", marginTop: 2 }}>
+                  {diaSeleccionado.count} evento{diaSeleccionado.count !== 1 ? "s" : ""} registrado{diaSeleccionado.count !== 1 ? "s" : ""}
+                </div>
+              </div>
+              <button
+                onClick={() => setDiaSeleccionado(null)}
+                style={{
+                  fontSize: 14,
+                  padding: "7px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #2b5c5c",
+                  background: "transparent",
+                  color: "#9db3b0",
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Cerrar
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "16px 26px 26px", flex: 1 }}>
+              {eventosDelDia === null ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#8fa8a8" }}>
+                  Cargando eventos del día...
+                </div>
+              ) : eventosDelDia.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#8fa8a8" }}>
+                  No se encontraron eventos detallados para esta fecha.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {eventosDelDia.map((ev) => {
+                    const color = EVENTO_COLOR[ev.tipo] || "#9db3b0";
+                    const icono = EVENTO_ICONO[ev.tipo] || "•";
+                    const fechaEv = ev.timestamp?.toDate ? ev.timestamp.toDate() : null;
+                    const horaStr = fechaEv ? fechaEv.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+                    return (
+                      <div
+                        key={ev.id}
+                        style={{
+                          background: "#0a1e20",
+                          border: "1px solid #1f4a4a",
+                          borderRadius: 10,
+                          padding: "12px 16px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            flexShrink: 0,
+                            width: 30,
+                            height: 30,
+                            borderRadius: "50%",
+                            background: color + "22",
+                            border: `1.5px solid ${color}`,
+                            color: color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 14,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {icono}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, color: "#eef7f5" }}>
+                            <strong>{ev.usuario || "Usuario"}</strong> <span style={{ color }}>{EVENTO_LABEL[ev.tipo] || ev.tipo}</span> <strong style={{ color: "#7fe0d4" }}>{ev.item}</strong>
+                          </div>
+                          {ev.ruta && (
+                            <div style={{ fontSize: 12, color: "#8fa8a8", marginTop: 3, wordBreak: "break-all" }}>
+                              📁 {ev.ruta}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 11, color: "#5b827f", marginTop: 6, display: "flex", justifyContent: "space-between" }}>
+                            <span>{ev.tipo}</span>
+                            <span>{horaStr}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1543,12 +1675,11 @@ function Card({ label, value, color, grande }) {
   );
 }
 
-// Gráfico de Tendencia optimizado con ancho dinámico para escalar perfectamente en modo presentación y zoom
 function TendenciaChart({ historial, grande, actividadPorDia }) {
   const altoLinea = grande ? 420 : 280;
   const altoBarras = grande ? 100 : 70;
   const alto = altoLinea + altoBarras;
-  const ancho = grande ? 960 : 720; // Ancho adaptativo para escalar armónicamente sin deformarse
+  const ancho = grande ? 960 : 720;
   const paddingIzq = 50;
   const paddingDer = 24;
   const paddingArriba = 24;
@@ -1849,6 +1980,138 @@ function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoI
           }}
         >
           {tooltip.texto}
+        </div>
+      )}
+
+      {diaSeleccionado && (
+        <div
+          onClick={() => setDiaSeleccionado(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(2,10,11,.8)",
+            backdropFilter: "blur(4px)",
+            zIndex: 150,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="chijnaya-fade-in"
+            style={{
+              background: "#0e2529",
+              border: "1px solid #2b5c5c",
+              borderRadius: 16,
+              width: "min(750px, 100%)",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 60px rgba(0,0,0,.6)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "20px 26px",
+                borderBottom: "1px solid #1f4a4a",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#dceeec" }}>
+                  Actividad del {formatearFechaLarga(diaSeleccionado.fecha)}
+                </div>
+                <div style={{ fontSize: 12, color: "#8fa8a8", marginTop: 2 }}>
+                  {diaSeleccionado.count} evento{diaSeleccionado.count !== 1 ? "s" : ""} registrado{diaSeleccionado.count !== 1 ? "s" : ""}
+                </div>
+              </div>
+              <button
+                onClick={() => setDiaSeleccionado(null)}
+                style={{
+                  fontSize: 14,
+                  padding: "7px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #2b5c5c",
+                  background: "transparent",
+                  color: "#9db3b0",
+                  cursor: "pointer",
+                }}
+              >
+                ✕ Cerrar
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "16px 26px 26px", flex: 1 }}>
+              {eventosDelDia === null ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#8fa8a8" }}>
+                  Cargando eventos del día...
+                </div>
+              ) : eventosDelDia.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#8fa8a8" }}>
+                  No se encontraron eventos detallados para esta fecha.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {eventosDelDia.map((ev) => {
+                    const color = EVENTO_COLOR[ev.tipo] || "#9db3b0";
+                    const icono = EVENTO_ICONO[ev.tipo] || "•";
+                    const fechaEv = ev.timestamp?.toDate ? ev.timestamp.toDate() : null;
+                    const horaStr = fechaEv ? fechaEv.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+                    return (
+                      <div
+                        key={ev.id}
+                        style={{
+                          background: "#0a1e20",
+                          border: "1px solid #1f4a4a",
+                          borderRadius: 10,
+                          padding: "12px 16px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            flexShrink: 0,
+                            width: 30,
+                            height: 30,
+                            borderRadius: "50%",
+                            background: color + "22",
+                            border: `1.5px solid ${color}`,
+                            color: color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 14,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {icono}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, color: "#eef7f5" }}>
+                            <strong>{ev.usuario || "Usuario"}</strong> <span style={{ color }}>{EVENTO_LABEL[ev.tipo] || ev.tipo}</span> <strong style={{ color: "#7fe0d4" }}>{ev.item}</strong>
+                          </div>
+                          {ev.ruta && (
+                            <div style={{ fontSize: 12, color: "#8fa8a8", marginTop: 3, wordBreak: "break-all" }}>
+                              📁 {ev.ruta}
+                            </div>
+                          )}
+                          <div style={{ fontSize: 11, color: "#5b827f", marginTop: 6, display: "flex", justifyContent: "space-between" }}>
+                            <span>{ev.tipo}</span>
+                            <span>{horaStr}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
