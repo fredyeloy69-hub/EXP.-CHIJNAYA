@@ -202,16 +202,10 @@ export default function Dashboard() {
 
     let motivo = "";
     if (forzada) {
-      motivo = window.prompt(
-        "¿Por qué se marca como completa? (ej. 'Documento escaneado, no aplica editable')",
-        ""
-      );
+      motivo = window.prompt("¿Por qué se marca como completa?", "");
       if (motivo === null) return;
     } else {
-      motivo = window.prompt(
-        "¿Por qué se desmarca? (ej. 'La marqué por error')",
-        ""
-      );
+      motivo = window.prompt("¿Por qué se desmarca?", "");
       if (motivo === null) return;
     }
 
@@ -261,11 +255,7 @@ export default function Dashboard() {
       setCarpetas(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
-    const eventosQuery = query(
-      collection(db, "eventos"),
-      orderBy("timestamp", "desc"),
-      limit(50)
-    );
+    const eventosQuery = query(collection(db, "eventos"), orderBy("timestamp", "desc"), limit(50));
     const unsubEventos = onSnapshot(eventosQuery, (snap) => {
       setEventos(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
@@ -274,11 +264,7 @@ export default function Dashboard() {
       setActividadPorDia(snap.exists() ? snap.data() : {});
     });
 
-    const historialQuery = query(
-      collection(db, "historial"),
-      orderBy("fecha", "asc"),
-      limit(90)
-    );
+    const historialQuery = query(collection(db, "historial"), orderBy("fecha", "asc"), limit(90));
     const unsubHistorial = onSnapshot(historialQuery, (snap) => {
       setHistorial(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
@@ -296,9 +282,7 @@ export default function Dashboard() {
     ? Math.round((resumen.completas / resumen.totalFinales) * 100)
     : 0;
 
-  const areas = Array.from(
-    new Set(carpetas.map((c) => c.area || "Sin área"))
-  ).sort();
+  const areas = Array.from(new Set(carpetas.map((c) => c.area || "Sin área"))).sort();
 
   const carpetasPorArea = {};
   for (const c of carpetas) {
@@ -328,9 +312,12 @@ export default function Dashboard() {
     const especialidad = partesRuta.length > 1 ? partesRuta[1] : "(raíz)";
     if (!especialidadPorArea[a]) especialidadPorArea[a] = {};
     if (!especialidadPorArea[a][especialidad])
-      especialidadPorArea[a][especialidad] = { total: 0, completas: 0, archivosNecesarios: 0, archivosCompletados: 0 };
+      especialidadPorArea[a][especialidad] = { total: 0, completas: 0, incompletas: 0, vacias: 0, archivosNecesarios: 0, archivosCompletados: 0 };
+    
     especialidadPorArea[a][especialidad].total++;
     if (c.estado === "completa") especialidadPorArea[a][especialidad].completas++;
+    if (c.estado === "incompleta") especialidadPorArea[a][especialidad].incompletas++;
+    if (c.estado === "vacia") especialidadPorArea[a][especialidad].vacias++;
     especialidadPorArea[a][especialidad].archivosNecesarios += c.archivosNecesarios || 0;
     especialidadPorArea[a][especialidad].archivosCompletados += c.archivosCompletados || 0;
   }
@@ -686,7 +673,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Contadores actualizados con desglose de estados por carpetas */}
+        {/* Contadores con desglose */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 32 }}>
           <Card label="Carpetas finales" value={resumen?.totalFinales ?? "–"} color="#17a398" grande={modoPresentacion} />
           <Card label="Completas" value={resumen?.completas ?? "–"} color="#2ecc71" grande={modoPresentacion} />
@@ -784,14 +771,24 @@ export default function Dashboard() {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                       gap: 16,
                     }}
                   >
                     {nombresOrdenados.map((esp, i) => {
                       const s = especialidadesDelArea[esp];
                       const pctEsp = s.archivosNecesarios > 0 ? Math.round((s.archivosCompletados / s.archivosNecesarios) * 100) : 0;
-                      return <EspecialidadMiniCard key={esp} nombre={esp} pct={pctEsp} total={s.total} delay={i * 30} />;
+                      return (
+                        <EspecialidadMiniCard
+                          key={esp}
+                          nombre={esp}
+                          pct={pctEsp}
+                          total={s.total}
+                          incompletas={s.incompletas}
+                          vacias={s.vacias}
+                          delay={i * 30}
+                        />
+                      );
                     })}
                   </div>
                 </div>
@@ -1314,7 +1311,7 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
   );
 }
 
-function EspecialidadMiniCard({ nombre, pct, total, delay }) {
+function EspecialidadMiniCard({ nombre, pct, total, incompletas = 0, vacias = 0, delay }) {
   const size = 90;
   const stroke = 7;
   const radius = (size - stroke) / 2;
@@ -1329,8 +1326,8 @@ function EspecialidadMiniCard({ nombre, pct, total, delay }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 8,
-        padding: "12px 8px",
+        gap: 6,
+        padding: "14px 10px",
         borderRadius: 10,
         background: "#0e252966",
         border: "1px solid #1f4a4a",
@@ -1358,7 +1355,11 @@ function EspecialidadMiniCard({ nombre, pct, total, delay }) {
       <div style={{ fontSize: 11, fontWeight: 600, color: "#b7c9c6", textAlign: "center", lineHeight: 1.25, maxWidth: 130 }}>
         {nombre}
       </div>
-      <div style={{ fontSize: 10, color: "#8fa8a8" }}>{total} carpetas</div>
+      <div style={{ fontSize: 10, color: "#8fa8a8", fontWeight: 600 }}>{total} carpetas</div>
+      <div style={{ fontSize: 9.5, textAlign: "center", display: "flex", gap: 6, marginTop: 2 }}>
+        <span style={{ color: "#f39c12" }}>{incompletas} inc.</span>
+        <span style={{ color: "#e74c3c" }}>{vacias} vacías</span>
+      </div>
     </div>
   );
 }
@@ -1416,7 +1417,6 @@ function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
 }
 
 function AreaProgressPanel({ area, stats, color }) {
-  const pctArchivos = stats.archivosNecesarios > 0 ? Math.round((stats.archivosCompletados / stats.archivosNecesarios) * 100) : 0;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 20, background: "#0e2529", border: `1px solid ${color}44`, borderRadius: 10, padding: "16px 20px", marginBottom: 12 }}>
       <div>
@@ -1528,10 +1528,10 @@ function Card({ label, value, color, grande }) {
   );
 }
 
-// Tendencia de avance ampliada y rediseñada para aprovechar el espacio gráfico
+// Gráfico de Tendencia optimizado y ampliado para modo presentación
 function TendenciaChart({ historial, grande, actividadPorDia }) {
-  const altoLinea = grande ? 380 : 280;
-  const altoBarras = grande ? 90 : 70;
+  const altoLinea = grande ? 420 : 280;
+  const altoBarras = grande ? 100 : 70;
   const alto = altoLinea + altoBarras;
   const ancho = 720;
   const paddingIzq = 50;
@@ -1544,10 +1544,10 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
         background: "#0e2529",
         border: "1px solid #2b5c5c",
         borderRadius: 12,
-        padding: grande ? "24px 28px" : "16px 18px",
+        padding: grande ? "28px 32px" : "16px 18px",
       }}
     >
-      <div style={{ fontSize: grande ? 18 : 15, fontWeight: 700, color: "#dceeec", marginBottom: 14 }}>
+      <div style={{ fontSize: grande ? 20 : 15, fontWeight: 700, color: "#dceeec", marginBottom: 14 }}>
         📈 Tendencia de avance {historial.length > 0 ? `(últimos ${historial.length} días)` : ""}
       </div>
 
@@ -1572,7 +1572,7 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
 
           const maxIncidencias = Math.max(1, ...puntos.map((p) => p.incidencias));
           const yBaseBarras = altoLinea + altoBarras - 16;
-          const maxEtiquetas = grande ? 12 : 7;
+          const maxEtiquetas = grande ? 14 : 7;
           const pasoEtiqueta = Math.max(1, Math.ceil(puntos.length / maxEtiquetas));
 
           return (
@@ -1582,7 +1582,7 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
                 return (
                   <g key={v}>
                     <line x1={paddingIzq} y1={y} x2={ancho - paddingDer} y2={y} stroke="#2b5c5c" strokeWidth="1" strokeDasharray="3,4" />
-                    <text x={paddingIzq - 8} y={y + 4} textAnchor="end" fontSize="12" fill="#8fa8a8" fontWeight="600">
+                    <text x={paddingIzq - 8} y={y + 4} textAnchor="end" fontSize={grande ? 14 : 12} fill="#8fa8a8" fontWeight="600">
                       {v}%
                     </text>
                   </g>
@@ -1594,12 +1594,12 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
                 d={pathLinea}
                 fill="none"
                 stroke="#17a398"
-                strokeWidth="3.5"
+                strokeWidth={grande ? "4.5" : "3.5"}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               {puntos.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={i === puntos.length - 1 ? 5.5 : 3.5} fill="#17a398" />
+                <circle key={i} cx={p.x} cy={p.y} r={i === puntos.length - 1 ? (grande ? 7 : 5.5) : (grande ? 5 : 3.5)} fill="#17a398" />
               ))}
 
               <defs>
@@ -1609,12 +1609,12 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
                 </linearGradient>
               </defs>
 
-              <text x={puntos[puntos.length - 1].x} y={puntos[puntos.length - 1].y - 12} textAnchor="end" fontSize="15" fontWeight="700" fill="#7fe0d4">
+              <text x={puntos[puntos.length - 1].x} y={puntos[puntos.length - 1].y - 14} textAnchor="end" fontSize={grande ? 18 : 15} fontWeight="700" fill="#7fe0d4">
                 {puntos[puntos.length - 1].pct}%
               </text>
 
               <line x1={paddingIzq} y1={altoLinea + 8} x2={ancho - paddingDer} y2={altoLinea + 8} stroke="#1f4a4a" strokeWidth="1" />
-              <text x={paddingIzq} y={altoLinea + 18} fontSize="11" fill="#8fa8a8" fontWeight="700">
+              <text x={paddingIzq} y={altoLinea + 18} fontSize={grande ? 12 : 11} fill="#8fa8a8" fontWeight="700">
                 INCIDENCIAS DEL DRIVE POR DÍA
               </text>
               {puntos.map((p, i) => {
@@ -1638,7 +1638,7 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
                   ? p.fecha
                   : fechaObj.toLocaleDateString("es-PE", { day: "numeric", month: "short" });
                 return (
-                  <text key={i} x={p.x} y={alto - 2} textAnchor="middle" fontSize="11" fill="#c8e8e5" fontWeight="600">
+                  <text key={i} x={p.x} y={alto - 2} textAnchor="middle" fontSize={grande ? 13 : 11} fill="#c8e8e5" fontWeight="600">
                     {etiqueta}
                   </text>
                 );
@@ -1712,7 +1712,6 @@ function ActividadHeatmap({ actividadPorDia, grande, onMarcarCompleta, marcandoI
   const celda = grande ? 30 : 17;
   const gap = grande ? 7 : 4;
   const tiposOrdenados = Object.keys(conteoPorTipoTotal).sort((a, b) => conteoPorTipoTotal[b] - conteoPorTipoTotal[a]);
-  const diaMasActivo = dias.reduce((max, d) => (d.count > (max?.count || 0) ? d : max), null);
 
   async function abrirDetalleDia(d) {
     setDiaSeleccionado(d);
