@@ -698,14 +698,14 @@ export default function Dashboard() {
             className="chijnaya-fade-in chijnaya-modo-transicion"
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
               gap: 28,
               justifyItems: "center",
               marginTop: 8,
             }}
           >
             {areas.map((a) => {
-              const stats = areaStats[a] || { total: 0, completas: 0, archivosNecesarios: 0, archivosCompletados: 0 };
+              const stats = areaStats[a] || { total: 0, completas: 0, incompletas: 0, vacias: 0, archivosNecesarios: 0, archivosCompletados: 0 };
               const pctArea =
                 stats.archivosNecesarios > 0
                   ? Math.round((stats.archivosCompletados / stats.archivosNecesarios) * 100)
@@ -716,10 +716,12 @@ export default function Dashboard() {
                   area={a}
                   pct={pctArea}
                   total={stats.total}
+                  incompletas={stats.incompletas}
+                  vacias={stats.vacias}
                   color={colorForArea(a)}
                   active={false}
                   onClick={() => {}}
-                  tamano={260}
+                  tamano={280}
                 />
               );
             })}
@@ -771,8 +773,8 @@ export default function Dashboard() {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                      gap: 16,
+                      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                      gap: 18,
                     }}
                   >
                     {nombresOrdenados.map((esp, i) => {
@@ -1312,8 +1314,8 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
 }
 
 function EspecialidadMiniCard({ nombre, pct, total, incompletas = 0, vacias = 0, delay }) {
-  const size = 90;
-  const stroke = 7;
+  const size = 110; // Círculo más grande
+  const stroke = 8;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
@@ -1326,9 +1328,9 @@ function EspecialidadMiniCard({ nombre, pct, total, incompletas = 0, vacias = 0,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 6,
-        padding: "14px 10px",
-        borderRadius: 10,
+        gap: 8,
+        padding: "18px 12px",
+        borderRadius: 12,
         background: "#0e252966",
         border: "1px solid #1f4a4a",
         animationDelay: `${delay}ms`,
@@ -1348,23 +1350,23 @@ function EspecialidadMiniCard({ nombre, pct, total, incompletas = 0, vacias = 0,
           strokeDashoffset={offset}
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
-        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="16" fontWeight="700" fill="#eef7f5">
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize="20" fontWeight="800" fill="#eef7f5">
           {pct}%
         </text>
       </svg>
-      <div style={{ fontSize: 11, fontWeight: 600, color: "#b7c9c6", textAlign: "center", lineHeight: 1.25, maxWidth: 130 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#eef7f5", textAlign: "center", lineHeight: 1.3, maxWidth: 150 }}>
         {nombre}
       </div>
-      <div style={{ fontSize: 10, color: "#8fa8a8", fontWeight: 600 }}>{total} carpetas</div>
-      <div style={{ fontSize: 9.5, textAlign: "center", display: "flex", gap: 6, marginTop: 2 }}>
-        <span style={{ color: "#f39c12" }}>{incompletas} inc.</span>
-        <span style={{ color: "#e74c3c" }}>{vacias} vacías</span>
+      <div style={{ fontSize: 12, color: "#9db3b0", fontWeight: 700 }}>{total} carpetas</div>
+      <div style={{ fontSize: 11, textAlign: "center", display: "flex", gap: 8, marginTop: 2 }}>
+        <span style={{ color: "#f39c12", fontWeight: 700 }}>{incompletas} inc.</span>
+        <span style={{ color: "#e74c3c", fontWeight: 700 }}>{vacias} vacías</span>
       </div>
     </div>
   );
 }
 
-function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
+function AreaMiniCard({ area, pct, total, incompletas = 0, vacias = 0, color, active, onClick, tamano }) {
   const size = tamano || 128;
   const stroke = Math.max(9, Math.round(size * 0.06));
   const radius = (size - stroke) / 2;
@@ -1381,13 +1383,14 @@ function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: Math.round(size * 0.07),
-        padding: "18px 10px",
+        gap: Math.round(size * 0.05),
+        padding: "18px 14px",
         borderRadius: 14,
         border: `2px solid ${active ? color : "#1f4a4a"}`,
         background: active ? color + "18" : "#0e2529",
         cursor: "pointer",
         transition: "all .15s ease",
+        width: tamano ? "100%" : "auto",
       }}
     >
       <svg width={size} height={size}>
@@ -1408,10 +1411,16 @@ function AreaMiniCard({ area, pct, total, color, active, onClick, tamano }) {
           {pct}%
         </text>
       </svg>
-      <div style={{ fontSize: fontLabel, fontWeight: 700, color: active ? color : "#dceeec", textAlign: "center" }}>
+      <div style={{ fontSize: fontLabel, fontWeight: 700, color: active ? color : "#dceeec", textAlign: "center", marginTop: 4 }}>
         {area}
       </div>
-      <div style={{ fontSize: fontCount, color: "#9db3b0" }}>{total} carpetas</div>
+      <div style={{ fontSize: fontCount, color: "#9db3b0", fontWeight: 700 }}>{total} carpetas</div>
+      {tamano && (
+        <div style={{ fontSize: 11, textAlign: "center", display: "flex", gap: 8, marginTop: 2 }}>
+          <span style={{ color: "#f39c12", fontWeight: 700 }}>{incompletas} inc.</span>
+          <span style={{ color: "#e74c3c", fontWeight: 700 }}>{vacias} vacías</span>
+        </div>
+      )}
     </button>
   );
 }
