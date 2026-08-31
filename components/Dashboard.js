@@ -142,7 +142,7 @@ export default function Dashboard() {
   const [marcandoId, setMarcandoId] = useState(null);
   const [mostrarMarcadas, setMostrarMarcadas] = useState(false);
   const [usuarioGoogle, setUsuarioGoogle] = useState(null);
-  const [rangoDiasHeatmap, setRangoDiasHeatmap] = useState(84); // 84 días por defecto
+  const [rangoDiasHeatmap, setRangoDiasHeatmap] = useState(84);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -550,7 +550,6 @@ export default function Dashboard() {
               </button>
             )}
 
-            {/* BOTÓN REPORTE CONSOLIDADO GLOBAL */}
             <button
               onClick={handleExportarGlobal}
               disabled={exportandoGlobal || carpetas.length === 0}
@@ -1362,7 +1361,6 @@ function RutaJerarquica({ ruta, nombre, skipLevels = 0 }) {
   if (skipLevels > 0 && partes.length > skipLevels) {
     partes = partes.slice(skipLevels);
   }
-  // Se muestra TODO el ramal completo sin omitir ningún nivel con puntos suspensivos
   let mostrar = partes;
 
   return (
@@ -1617,9 +1615,11 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
   const altoLinea = grande ? 420 : 280;
   const altoBarras = grande ? 100 : 70;
   const alto = altoLinea + altoBarras;
-  const ancho = grande ? 960 : 720;
-  const paddingIzq = 50;
-  const paddingDer = 24;
+  
+  const anchoPunto = grande ? 50 : 40;
+  const paddingIzq = 60;
+  const paddingDer = 40;
+  const ancho = Math.max(grande ? 960 : 720, paddingIzq + paddingDer + historial.length * anchoPunto);
   const paddingArriba = 24;
 
   return (
@@ -1631,8 +1631,9 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
         padding: grande ? "28px 32px" : "16px 18px",
       }}
     >
-      <div style={{ fontSize: grande ? 20 : 15, fontWeight: 700, color: "#dceeec", marginBottom: 14 }}>
-        📈 Tendencia de avance {historial.length > 0 ? `(últimos ${historial.length} días)` : ""}
+      <div style={{ fontSize: grande ? 20 : 15, fontWeight: 700, color: "#dceeec", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>📈 Tendencia de avance {historial.length > 0 ? `(historial continuo de ${historial.length} días)` : ""}</span>
+        <span style={{ fontSize: 12, color: "#8fa8a8", fontWeight: 400 }}>Desliza horizontalmente ↔</span>
       </div>
 
       {historial.length < 2 ? (
@@ -1642,7 +1643,7 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
       ) : (
         (() => {
           const puntos = historial.map((h, i) => {
-            const x = paddingIzq + (i / (historial.length - 1)) * (ancho - paddingIzq - paddingDer);
+            const x = paddingIzq + i * anchoPunto;
             const y = paddingArriba + altoLinea - paddingArriba - (h.pct / 100) * (altoLinea - paddingArriba * 2);
             const tiposDia = actividadPorDia?.[h.fecha] || {};
             const incidencias = Object.values(tiposDia).reduce((s, n) => s + n, 0);
@@ -1656,78 +1657,79 @@ function TendenciaChart({ historial, grande, actividadPorDia }) {
 
           const maxIncidencias = Math.max(1, ...puntos.map((p) => p.incidencias));
           const yBaseBarras = altoLinea + altoBarras - 16;
-          const maxEtiquetas = grande ? 14 : 7;
-          const pasoEtiqueta = Math.max(1, Math.ceil(puntos.length / maxEtiquetas));
+          const pasoEtiqueta = 1;
 
           return (
-            <svg viewBox={`0 0 ${ancho} ${alto}`} style={{ width: "100%", height: "auto", display: "block" }}>
-              {[0, 25, 50, 75, 100].map((v) => {
-                const y = paddingArriba + altoLinea - paddingArriba - (v / 100) * (altoLinea - paddingArriba * 2);
-                return (
-                  <g key={v}>
-                    <line x1={paddingIzq} y1={y} x2={ancho - paddingDer} y2={y} stroke="#2b5c5c" strokeWidth="1" strokeDasharray="3,4" />
-                    <text x={paddingIzq - 8} y={y + 4} textAnchor="end" fontSize={grande ? 14 : 12} fill="#8fa8a8" fontWeight="600">
-                      {v}%
+            <div style={{ overflowX: "auto", overflowY: "hidden", width: "100%", paddingBottom: 8, scrollbarWidth: "thin", scrollbarColor: "#2b5c5c #0e2529" }}>
+              <svg viewBox={`0 0 ${ancho} ${alto}`} style={{ width: `${ancho}px`, height: `${alto}px`, display: "block" }}>
+                {[0, 25, 50, 75, 100].map((v) => {
+                  const y = paddingArriba + altoLinea - paddingArriba - (v / 100) * (altoLinea - paddingArriba * 2);
+                  return (
+                    <g key={v}>
+                      <line x1={paddingIzq - 10} y1={y} x2={ancho - paddingDer} y2={y} stroke="#2b5c5c" strokeWidth="1" strokeDasharray="3,4" />
+                      <text x={paddingIzq - 16} y={y + 4} textAnchor="end" fontSize={grande ? 14 : 12} fill="#8fa8a8" fontWeight="600">
+                        {v}%
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <path d={pathArea} fill="url(#tendenciaGradient)" opacity="0.4" />
+                <path
+                  d={pathLinea}
+                  fill="none"
+                  stroke="#17a398"
+                  strokeWidth={grande ? "4.5" : "3.5"}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                {puntos.map((p, i) => (
+                  <circle key={i} cx={p.x} cy={p.y} r={i === puntos.length - 1 ? (grande ? 7 : 5.5) : (grande ? 5 : 3.5)} fill="#17a398" />
+                ))}
+
+                <defs>
+                  <linearGradient id="tendenciaGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#17a398" />
+                    <stop offset="100%" stopColor="#17a398" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+
+                <text x={puntos[puntos.length - 1].x} y={puntos[puntos.length - 1].y - 14} textAnchor="end" fontSize={grande ? 18 : 15} fontWeight="700" fill="#7fe0d4">
+                  {puntos[puntos.length - 1].pct}%
+                </text>
+
+                <line x1={paddingIzq - 10} y1={altoLinea + 8} x2={ancho - paddingDer} y2={altoLinea + 8} stroke="#1f4a4a" strokeWidth="1" />
+                <text x={paddingIzq} y={altoLinea + 18} fontSize={grande ? 12 : 11} fill="#8fa8a8" fontWeight="700">
+                  INCIDENCIAS DEL DRIVE POR DÍA
+                </text>
+                {puntos.map((p, i) => {
+                  const alturaBarrita = Math.max(3, (p.incidencias / maxIncidencias) * (altoBarras - 28));
+                  return (
+                    <rect
+                      key={i}
+                      x={p.x - 4}
+                      y={yBaseBarras - alturaBarrita}
+                      width="8"
+                      height={alturaBarrita}
+                      rx="2"
+                      fill={p.incidencias > 0 ? "#2dd4bf" : "#1f4a4a"}
+                    />
+                  );
+                })}
+                {puntos.map((p, i) => {
+                  if (i % pasoEtiqueta !== 0 && i !== puntos.length - 1) return null;
+                  const fechaObj = new Date(p.fecha + "T12:00:00");
+                  const etiqueta = isNaN(fechaObj.getTime())
+                    ? p.fecha
+                    : fechaObj.toLocaleDateString("es-PE", { day: "numeric", month: "short" });
+                  return (
+                    <text key={i} x={p.x} y={alto - 2} textAnchor="middle" fontSize={grande ? 13 : 11} fill="#c8e8e5" fontWeight="600">
+                      {etiqueta}
                     </text>
-                  </g>
-                );
-              })}
-
-              <path d={pathArea} fill="url(#tendenciaGradient)" opacity="0.4" />
-              <path
-                d={pathLinea}
-                fill="none"
-                stroke="#17a398"
-                strokeWidth={grande ? "4.5" : "3.5"}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {puntos.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r={i === puntos.length - 1 ? (grande ? 7 : 5.5) : (grande ? 5 : 3.5)} fill="#17a398" />
-              ))}
-
-              <defs>
-                <linearGradient id="tendenciaGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#17a398" />
-                  <stop offset="100%" stopColor="#17a398" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-
-              <text x={puntos[puntos.length - 1].x} y={puntos[puntos.length - 1].y - 14} textAnchor="end" fontSize={grande ? 18 : 15} fontWeight="700" fill="#7fe0d4">
-                {puntos[puntos.length - 1].pct}%
-              </text>
-
-              <line x1={paddingIzq} y1={altoLinea + 8} x2={ancho - paddingDer} y2={altoLinea + 8} stroke="#1f4a4a" strokeWidth="1" />
-              <text x={paddingIzq} y={altoLinea + 18} fontSize={grande ? 12 : 11} fill="#8fa8a8" fontWeight="700">
-                INCIDENCIAS DEL DRIVE POR DÍA
-              </text>
-              {puntos.map((p, i) => {
-                const alturaBarrita = Math.max(3, (p.incidencias / maxIncidencias) * (altoBarras - 28));
-                return (
-                  <rect
-                    key={i}
-                    x={p.x - 3}
-                    y={yBaseBarras - alturaBarrita}
-                    width="6"
-                    height={alturaBarrita}
-                    rx="2"
-                    fill={p.incidencias > 0 ? "#2dd4bf" : "#1f4a4a"}
-                  />
-                );
-              })}
-              {puntos.map((p, i) => {
-                if (i % pasoEtiqueta !== 0 && i !== puntos.length - 1) return null;
-                const fechaObj = new Date(p.fecha + "T12:00:00");
-                const etiqueta = isNaN(fechaObj.getTime())
-                  ? p.fecha
-                  : fechaObj.toLocaleDateString("es-PE", { day: "numeric", month: "short" });
-                return (
-                  <text key={i} x={p.x} y={alto - 2} textAnchor="middle" fontSize={grande ? 13 : 11} fill="#c8e8e5" fontWeight="600">
-                    {etiqueta}
-                  </text>
-                );
-              })}
-            </svg>
+                  );
+                })}
+              </svg>
+            </div>
           );
         })()
       )}
