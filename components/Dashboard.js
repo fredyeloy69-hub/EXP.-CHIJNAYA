@@ -936,9 +936,9 @@ export default function Dashboard() {
                     fontWeight: 600,
                     cursor: exportandoIndiceArea === a ? "not-allowed" : "pointer",
                   }}
-                  title={`Exportar Índice General (N° Orden / N° Separador / Descripción / N° Archivadores) de ${a}`}
+                  title={`Exportar Lista General (N° Orden / N° Separador / Descripción / N° Archivadores) de ${a}`}
                 >
-                  📑 {exportandoIndiceArea === a ? "Generando..." : "Índice General"}
+                  📑 {exportandoIndiceArea === a ? "Generando..." : "Exportar Lista General"}
                 </button>
               </div>
             ))}
